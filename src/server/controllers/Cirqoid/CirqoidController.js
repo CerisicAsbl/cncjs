@@ -135,7 +135,7 @@ class CirqoidController {
             }
 
             const now = new Date().getTime();
-
+            
             if (this.query.type === QUERY_TYPE_POSITION) {
                 this.connection.write('M114\n', {
                     source: WRITE_SOURCE_SERVER
@@ -1153,7 +1153,7 @@ class CirqoidController {
             'homing': () => {
                 this.event.trigger('homing');
 
-                this.writeln('G28.2 X Y Z');
+                this.writeln('G28 Y=0.055');
             },
             'sleep': () => {
                 this.event.trigger('sleep');
