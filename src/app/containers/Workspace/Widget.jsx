@@ -8,6 +8,7 @@ import GrblWidget from 'app/widgets/Grbl';
 import LaserWidget from 'app/widgets/Laser';
 import MacroWidget from 'app/widgets/Macro';
 import MarlinWidget from 'app/widgets/Marlin';
+import CirqoidWidget from 'app/widgets/Cirqoid';
 import ProbeWidget from 'app/widgets/Probe';
 import SmoothieWidget from 'app/widgets/Smoothie';
 import SpindleWidget from 'app/widgets/Spindle';
@@ -26,6 +27,7 @@ const getWidgetByName = (name) => {
         'laser': LaserWidget,
         'macro': MacroWidget,
         'marlin': MarlinWidget,
+        'cirqoid': CirqoidWidget,
         'probe': ProbeWidget,
         'smoothie': SmoothieWidget,
         'spindle': SpindleWidget,
