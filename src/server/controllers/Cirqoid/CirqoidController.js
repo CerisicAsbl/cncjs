@@ -135,7 +135,6 @@ class CirqoidController {
             }
 
             const now = new Date().getTime();
-            
             if (this.query.type === QUERY_TYPE_POSITION) {
                 this.connection.write('M114\n', {
                     source: WRITE_SOURCE_SERVER
@@ -250,7 +249,19 @@ class CirqoidController {
 
                 interpret(line, (cmd, params) => {
                     // motion
-                    if (_.includes(['G0', 'G1', 'G2', 'G3', 'G38.2', 'G38.3', 'G38.4', 'G38.5', 'G80'], cmd)) {
+                    /* if (_.includes(['G0', 'G1', 'G2', 'G3', 'G38.2', 'G38.3', 'G38.4', 'G38.5', 'G80'], cmd)) {
+                        nextState.modal.motion = cmd;
+
+                        if (params.F !== undefined) {
+                            if (cmd === 'G0') {
+                                nextState.rapidFeedrate = params.F;
+                            } else {
+                                nextState.feedrate = params.F;
+                            }
+                        }
+                    } */
+
+                    if (_.includes(['G0', 'G1'], cmd)) {
                         nextState.modal.motion = cmd;
 
                         if (params.F !== undefined) {
@@ -1152,8 +1163,7 @@ class CirqoidController {
             },
             'homing': () => {
                 this.event.trigger('homing');
-
-                this.writeln('G28 Y=0.055');
+                this.writeln('G28 Y0.055');
             },
             'sleep': () => {
                 this.event.trigger('sleep');
