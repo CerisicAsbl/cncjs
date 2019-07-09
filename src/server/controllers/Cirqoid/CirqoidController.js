@@ -1,5 +1,5 @@
 import ensureArray from 'ensure-array';
-import * as parser from 'gcode-parser';
+//import * as parser from 'gcode-parser';
 import _ from 'lodash';
 import SerialConnection from '../../lib/SerialConnection';
 import EventTrigger from '../../lib/EventTrigger';
@@ -136,14 +136,14 @@ class CirqoidController {
 
             const now = new Date().getTime();
             if (this.query.type === QUERY_TYPE_POSITION) {
-                this.connection.write('M114\n', {
+                /* this.connection.write('M114\n', {
                     source: WRITE_SOURCE_SERVER
-                });
+                }); */
                 this.query.lastQueryTime = now;
             } else if (this.query.type === QUERY_TYPE_TEMPERATURE) {
-                this.connection.write('M105\n', {
+                /* this.connection.write('M105\n', {
                     source: WRITE_SOURCE_SERVER
-                });
+                }); */
                 this.query.lastQueryTime = now;
             } else {
                 log.error('Unsupported query type:', this.query.type);
@@ -274,38 +274,38 @@ class CirqoidController {
                     }
 
                     // wcs
-                    if (_.includes(['G54', 'G55', 'G56', 'G57', 'G58', 'G59'], cmd)) {
+                    if (_.includes(['G54'], cmd)) {
                         nextState.modal.wcs = cmd;
                     }
 
                     // plane
-                    if (_.includes(['G17', 'G18', 'G19'], cmd)) {
+                    /* if (_.includes(['G17', 'G18', 'G19'], cmd)) {
                         // G17: xy-plane, G18: xz-plane, G19: yz-plane
                         nextState.modal.plane = cmd;
-                    }
+                    } */
 
                     // units
-                    if (_.includes(['G20', 'G21'], cmd)) {
+                    /* if (_.includes(['G21'], cmd)) {
                         // G20: Inches, G21: Millimeters
                         nextState.modal.units = cmd;
-                    }
+                    } */
 
-                    // distance
+                    /* // distance
                     if (_.includes(['G90', 'G91'], cmd)) {
                         // G90: Absolute, G91: Relative
                         nextState.modal.distance = cmd;
-                    }
+                    } */
 
                     // feedrate
-                    if (_.includes(['G93', 'G94'], cmd)) {
+                    /* if (_.includes(['G93', 'G94'], cmd)) {
                         // G93: Inverse time mode, G94: Units per minute
                         nextState.modal.feedrate = cmd;
-                    }
+                    } */
 
                     // program
-                    if (_.includes(['M0', 'M1', 'M2', 'M30'], cmd)) {
+                    /* if (_.includes(['M0', 'M1', 'M2', 'M30'], cmd)) {
                         nextState.modal.program = cmd;
-                    }
+                    } */
 
                     // spindle or head
                     if (_.includes(['M3', 'M4', 'M5'], cmd)) {
@@ -320,7 +320,7 @@ class CirqoidController {
                     }
 
                     // coolant
-                    if (_.includes(['M7', 'M8', 'M9'], cmd)) {
+                    /* if (_.includes(['M7', 'M8', 'M9'], cmd)) {
                         const coolant = nextState.modal.coolant;
 
                         // M7: Mist coolant, M8: Flood coolant, M9: Coolant off, [M7,M8]: Both on
@@ -332,7 +332,7 @@ class CirqoidController {
                                 nextState.modal.coolant = nextState.modal.coolant[0];
                             }
                         }
-                    }
+                    } */
                 });
 
                 if (!_.isEqual(this.runner.state, nextState)) {
@@ -378,22 +378,22 @@ class CirqoidController {
                 // line="G0 X[posx - 8] Y[ymax]"
                 // > "G0 X2 Y50"
                 line = translateExpression(line, context);
-                const data = parser.parseLine(line, { flatten: true });
-                const words = ensureArray(data.words);
+                //const data = parser.parseLine(line, { flatten: true });
+                //const words = ensureArray(data.words);
 
                 // M109 Set extruder temperature and wait for the target temperature to be reached
-                if (_.includes(words, 'M109')) {
+                /* if (_.includes(words, 'M109')) {
                     log.debug(`Wait for extruder temperature to reach target temperature (${line})`);
                     this.feeder.hold({ data: 'M109' }); // Hold reason
-                }
+                } */
 
                 // M190 Set heated bed temperature and wait for the target temperature to be reached
-                if (_.includes(words, 'M190')) {
+                /* if (_.includes(words, 'M190')) {
                     log.debug(`Wait for heated bed temperature to reach target temperature (${line})`);
                     this.feeder.hold({ data: 'M190' }); // Hold reason
                 }
-
-                { // Program Mode: M0, M1
+ */
+                /* { // Program Mode: M0, M1
                     const programMode = _.intersection(words, ['M0', 'M1'])[0];
                     if (programMode === 'M0') {
                         log.debug('M0 Program Pause');
@@ -402,13 +402,13 @@ class CirqoidController {
                         log.debug('M1 Program Pause');
                         this.feeder.hold({ data: 'M1' }); // Hold reason
                     }
-                }
+                } */
 
-                // M6 Tool Change
+                /* // M6 Tool Change
                 if (_.includes(words, 'M6')) {
                     log.debug('M6 Tool Change');
                     this.feeder.hold({ data: 'M6' }); // Hold reason
-                }
+                } */
 
                 return line;
             }
@@ -460,7 +460,7 @@ class CirqoidController {
 
                         // G4 [P<time in ms>] [S<time in sec>]
                         // If both S and P are included, S takes precedence.
-                        return 'G4 P500'; // dwell
+                        return 'G4 P0.5'; // dwell
                     }
 
                     // Expression
@@ -472,24 +472,24 @@ class CirqoidController {
                 // line="G0 X[posx - 8] Y[ymax]"
                 // > "G0 X2 Y50"
                 line = translateExpression(line, context);
-                const data = parser.parseLine(line, { flatten: true });
-                const words = ensureArray(data.words);
+                //const data = parser.parseLine(line, { flatten: true });
+                //const words = ensureArray(data.words);
 
                 // M109 Set extruder temperature and wait for the target temperature to be reached
-                if (_.includes(words, 'M109')) {
+                /* if (_.includes(words, 'M109')) {
                     log.debug(`Wait for extruder temperature to reach target temperature (${line}): line=${sent + 1}, sent=${sent}, received=${received}`);
                     const reason = { data: 'M109' };
                     this.sender.hold(reason); // Hold reason
-                }
+                } */
 
                 // M190 Set heated bed temperature and wait for the target temperature to be reached
-                if (_.includes(words, 'M190')) {
+                /* if (_.includes(words, 'M190')) {
                     log.debug(`Wait for heated bed temperature to reach target temperature (${line}): line=${sent + 1}, sent=${sent}, received=${received}`);
                     const reason = { data: 'M190' };
                     this.sender.hold(reason); // Hold reason
-                }
+                } */
 
-                { // Program Mode: M0, M1
+                /* { // Program Mode: M0, M1
                     const programMode = _.intersection(words, ['M0', 'M1'])[0];
                     if (programMode === 'M0') {
                         log.debug(`M0 Program Pause: line=${sent + 1}, sent=${sent}, received=${received}`);
@@ -498,13 +498,13 @@ class CirqoidController {
                         log.debug(`M1 Program Pause: line=${sent + 1}, sent=${sent}, received=${received}`);
                         this.workflow.pause({ data: 'M1' });
                     }
-                }
+                } */
 
-                // M6 Tool Change
+                /* // M6 Tool Change
                 if (_.includes(words, 'M6')) {
                     log.debug(`M6 Tool Change: line=${sent + 1}, sent=${sent}, received=${received}`);
                     this.workflow.pause({ data: 'M6' });
-                }
+                } */
 
                 return line;
             }
@@ -587,9 +587,9 @@ class CirqoidController {
             // Cirqoid readiness.  On initial power-up, Cirqoid might
             // miss that first M115 as it boots, so we send this
             // possibly-redundant M115 when we see 'start'.
-            this.connection.write('M115\n', {
+            /* this.connection.write('M115\n', {
                 source: WRITE_SOURCE_SERVER
-            });
+            }); */
         });
 
         this.runner.on('echo', (res) => {
@@ -936,7 +936,7 @@ class CirqoidController {
 
             // M115: Get firmware version and capabilities
             // The response to this will take us to the ready state
-            this.connection.write('M115\n', {
+            this.connection.write('$$$info\n', {
                 source: WRITE_SOURCE_SERVER
             });
 
@@ -1179,7 +1179,7 @@ class CirqoidController {
                 this.feeder.reset();
 
                 // M112: Emergency Stop
-                this.writeln('M112');
+                // this.writeln('M112');
             },
             // Feed Overrides
             // @param {number} value A percentage value between 10 and 500. A value of zero will reset to 100%.
@@ -1197,7 +1197,7 @@ class CirqoidController {
                     feedOverride += value;
                 }
                 // M220: Set speed factor override percentage
-                this.command('gcode', 'M220S' + feedOverride);
+                // this.command('gcode', 'M220S' + feedOverride);
 
                 // enforce state change
                 this.runner.state = {

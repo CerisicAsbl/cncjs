@@ -13,7 +13,6 @@ const webpackDevServer = (app) => {
 
     const webpackConfig = require('../../webpack.config.app.development');
     const compiler = webpack(webpackConfig);
-
     // https://github.com/webpack/webpack-dev-middleware
     // webpack-dev-middleware handle the files in memory.
     app.use(webpackDevMiddleware(compiler, {
