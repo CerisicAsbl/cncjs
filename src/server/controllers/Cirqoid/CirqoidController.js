@@ -359,7 +359,7 @@ class CirqoidController {
                 line = line.replace(/\s*;.*/g, '').trim();
                 filteredGcodes=['G90','G91'];
                 for (let filteredGcode of filteredGcodes) {
-                    lines = lines.replace(new RegExp('\\s*'+filteredGcode+'.*','g'),'').trim();
+                    line = line.replace(new RegExp('\\s*'+filteredGcode+'.*','g'),'').trim();
                 }
                 context = this.populateContext(context);
 
