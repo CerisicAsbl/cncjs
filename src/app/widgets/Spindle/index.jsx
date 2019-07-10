@@ -26,6 +26,8 @@ import {
     TINYG_MACHINE_STATE_STOP,
     TINYG_MACHINE_STATE_END,
     TINYG_MACHINE_STATE_HOLD,
+    // Cirqoid
+    // CIRQOID,
     // Workflow
     WORKFLOW_STATE_RUN
 } from '../../constants';
@@ -119,6 +121,22 @@ class SpindleWidget extends PureComponent {
                     }
                 });
             }
+
+            // Cirqoid
+            // if (type === CIRQOID) {
+            //     const { modal = {} } = { ...state };
+
+            //     this.setState({
+            //         controller: {
+            //             type: type,
+            //             state: state,
+            //             modal: {
+            //                 spindle: modal.spindle || '',
+            //                 coolant: modal.coolant || ''
+            //             }
+            //         }
+            //     });
+            // }
 
             // Smoothie
             if (type === SMOOTHIE) {
