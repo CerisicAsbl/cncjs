@@ -263,7 +263,6 @@ class CirqoidController {
 
                     if (_.includes(['G0', 'G1'], cmd)) {
                         nextState.modal.motion = cmd;
-                        log.debug('Test');
                         if (params.F !== undefined) {
                             if (cmd === 'G0') {
                                 nextState.rapidFeedrate = params.F;
@@ -358,6 +357,10 @@ class CirqoidController {
             dataFilter: (line, context) => {
                 // Remove comments that start with a semicolon `;`
                 line = line.replace(/\s*;.*/g, '').trim();
+                filteredGcodes=['G90','G91'];
+                for (let filteredGcode of filteredGcodes) {
+                    line = line.replace(/\s*${f}.*/g, '').trim();
+                }
                 context = this.populateContext(context);
 
                 if (line[0] === '%') {
@@ -581,26 +584,6 @@ class CirqoidController {
 
         this.runner.on('raw', noop);
 
-        this.runner.on('start', (res) => {
-            this.emit('serialport:read', res.raw);
-            // Cirqoid sends 'start' as the first message after
-            // power-on, but not when the serial port is closed and
-            // then re-opened.  Cirqoid has no software-initiated
-            // restart, so 'start' is not dependable as a readiness
-            // indicator.  Instead, we send M115 on connection open
-            // to request a firmware report, whose response signals
-            // Cirqoid readiness.  On initial power-up, Cirqoid might
-            // miss that first M115 as it boots, so we send this
-            // possibly-redundant M115 when we see 'start'.
-            /* this.connection.write('M115\n', {
-                source: WRITE_SOURCE_SERVER
-            }); */
-        });
-
-        this.runner.on('echo', (res) => {
-            this.emit('serialport:read', res.raw);
-        });
-
         this.runner.on('firmware', (res) => {
             this.emit('serialport:read', res.raw);
             if (!this.ready) {
@@ -610,25 +593,8 @@ class CirqoidController {
             }
         });
 
-        this.runner.on('pos', (res) => {
-            log.silly(`controller.on('pos'): source=${this.history.writeSource}, line=${JSON.stringify(this.history.writeLine)}, res=${JSON.stringify(res)}`);
-
-            if (_.includes([WRITE_SOURCE_CLIENT, WRITE_SOURCE_FEEDER], this.history.writeSource)) {
-                this.emit('serialport:read', res.raw);
-            }
-        });
-
-        this.runner.on('temperature', (res) => {
-            log.silly(`controller.on('temperature'): source=${this.history.writeSource}, line=${JSON.stringify(this.history.writeLine)}, res=${JSON.stringify(res)}`);
-
-            if (_.includes([WRITE_SOURCE_CLIENT, WRITE_SOURCE_FEEDER], this.history.writeSource)) {
-                this.emit('serialport:read', res.raw);
-            }
-        });
-
         this.runner.on('ok', (res) => {
             log.silly(`controller.on('ok'): source=${this.history.writeSource}, line=${JSON.stringify(this.history.writeLine)}, res=${JSON.stringify(res)}`);
-
             if (res) {
                 if (_.includes([WRITE_SOURCE_CLIENT, WRITE_SOURCE_FEEDER], this.history.writeSource)) {
                     this.emit('serialport:read', res.raw);
@@ -1270,19 +1236,22 @@ class CirqoidController {
                 this.writeln('M5');
             },
             'gcode': () => {
+
                 const [commands, context] = args;
-                const data = ensureArray(commands)
-                    .join('\n')
-                    .split(/\r?\n/)
-                    .filter(line => {
-                        if (typeof line !== 'string') {
-                            return false;
-                        }
+                if(!_.contains(['G90','G91'],commands)){
+                    const data = ensureArray(commands)
+                        .join('\n')
+                        .split(/\r?\n/)
+                        .filter(line => {
+                            if (typeof line !== 'string') {
+                                return false;
+                            }
+                            return line.trim().length > 0;
+                        });
 
-                        return line.trim().length > 0;
-                    });
-
-                this.feeder.feed(data, context);
+                    this.feeder.feed(data, context);
+                }
+                
 
                 { // The following criteria must be met to trigger the feeder
                     const notBusy = !(this.history.writeSource);
