@@ -357,9 +357,9 @@ class CirqoidController {
             dataFilter: (line, context) => {
                 // Remove comments that start with a semicolon `;`
                 line = line.replace(/\s*;.*/g, '').trim();
-                filteredGcodes=['G90','G91'];
+                const filteredGcodes = ['G90', 'G91'];
                 for (let filteredGcode of filteredGcodes) {
-                    line = line.replace(new RegExp('\\s*'+filteredGcode+'.*','g'),'').trim();
+                    line = line.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '').trim();
                 }
                 context = this.populateContext(context);
 
@@ -1236,22 +1236,18 @@ class CirqoidController {
                 this.writeln('M5');
             },
             'gcode': () => {
-
                 const [commands, context] = args;
-                if(!_.contains(['G90','G91'],commands)){
-                    const data = ensureArray(commands)
-                        .join('\n')
-                        .split(/\r?\n/)
-                        .filter(line => {
-                            if (typeof line !== 'string') {
-                                return false;
-                            }
-                            return line.trim().length > 0;
-                        });
+                const data = ensureArray(commands)
+                    .join('\n')
+                    .split(/\r?\n/)
+                    .filter(line => {
+                        if (typeof line !== 'string') {
+                            return false;
+                        }
+                        return line.trim().length > 0;
+                    });
 
-                    this.feeder.feed(data, context);
-                }
-                
+                this.feeder.feed(data, context);
 
                 { // The following criteria must be met to trigger the feeder
                     const notBusy = !(this.history.writeSource);

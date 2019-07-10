@@ -1,6 +1,6 @@
 class CirqoidLineParserResultFirmware {
     static parse(line) {
-        let r = line.match(/^Cirqoid firmware:.*/i);
+        let r = line.match(/^Cirqoid firmware.*/i);
         if (!r) {
             return null;
         }
@@ -8,7 +8,7 @@ class CirqoidLineParserResultFirmware {
         const payload = {};
 
         { // Cirqoid firmware
-            const r = line.match(/Cirqoid firmware:([a-zA-Z\_\-]+(\s+[\d\.]+)?)/);
+            const r = line.match(/Cirqoid firmware([a-zA-Z\_\-]+(\s+[\d\.]+)?)/);
             if (r) {
                 payload.firmwareName = r[1];
             }
