@@ -42,6 +42,8 @@ import {
     TINYG_MACHINE_STATE_STOP,
     TINYG_MACHINE_STATE_END,
     TINYG_MACHINE_STATE_RUN,
+    // Cirqoid
+    CIRQOID,
     // Workflow
     WORKFLOW_STATE_RUNNING
 } from '../../constants';
@@ -158,6 +160,10 @@ class AxesWidget extends PureComponent {
 
             if (controllerType === TINYG) {
                 return get(controllerState, 'sr.modal.wcs') || defaultWCS;
+            }
+
+            if (controllerType === CIRQOID) {
+                return get(controllerState, 'modal.wcs') || defaultWCS;
             }
 
             return defaultWCS;
@@ -523,6 +529,38 @@ class AxesWidget extends PureComponent {
                 }));
             }
 
+            // CIRQOID
+            if (type === CIRQOID) {
+                const { pos, modal = {} } = { ...controllerState };
+                const units = {
+                    'G20': IMPERIAL_UNITS,
+                    'G21': METRIC_UNITS
+                }[modal.units] || this.state.units;
+
+                this.setState(state => ({
+                    units: units,
+                    controller: {
+                        ...state.controller,
+                        type: type,
+                        state: controllerState
+                    },
+                    // Machine position are reported in current units
+                    machinePosition: mapValues({
+                        ...state.machinePosition,
+                        ...pos
+                    }, (val) => {
+                        return (units === IMPERIAL_UNITS) ? in2mm(val) : val;
+                    }),
+                    // Work position are reported in current units
+                    workPosition: mapValues({
+                        ...state.workPosition,
+                        ...pos
+                    }, (val) => {
+                        return (units === IMPERIAL_UNITS) ? in2mm(val) : val;
+                    })
+                }));
+            }
+
             // Smoothie
             if (type === SMOOTHIE) {
                 const { status, parserstate } = { ...controllerState };
@@ -749,7 +787,7 @@ class AxesWidget extends PureComponent {
         if (workflow.state === WORKFLOW_STATE_RUNNING) {
             return false;
         }
-        if (!includes([GRBL, MARLIN, SMOOTHIE, TINYG], controllerType)) {
+        if (!includes([GRBL, MARLIN, SMOOTHIE, TINYG, CIRQOID], controllerType)) {
             return false;
         }
         if (controllerType === GRBL) {
@@ -763,6 +801,9 @@ class AxesWidget extends PureComponent {
             }
         }
         if (controllerType === MARLIN) {
+            // Ignore
+        }
+        if (controllerType === CIRQOID) {
             // Ignore
         }
         if (controllerType === SMOOTHIE) {

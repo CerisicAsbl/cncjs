@@ -1,5 +1,5 @@
 import ensureArray from 'ensure-array';
-//import * as parser from 'gcode-parser';
+import * as parser from 'gcode-parser';
 import _ from 'lodash';
 import SerialConnection from '../../lib/SerialConnection';
 import EventTrigger from '../../lib/EventTrigger';
@@ -28,9 +28,7 @@ import {
 import CirqoidRunner from './CirqoidRunner';
 import interpret from './interpret';
 import {
-    CIRQOID,
-    QUERY_TYPE_POSITION,
-    QUERY_TYPE_TEMPERATURE
+    CIRQOID
 } from './constants';
 
 // % commands
@@ -121,93 +119,93 @@ class CirqoidController {
     workflow = null;
 
     // Query
-    queryTimer = null;
+    // queryTimer = null;
 
-    query = {
-        // state
-        type: null,
-        lastQueryTime: 0,
+    // query = {
+    //     // state
+    //     type: null,
+    //     lastQueryTime: 0,
 
-        // action
-        issue: () => {
-            if (!this.query.type) {
-                return;
-            }
+    //     // action
+    //     issue: () => {
+    //         if (!this.query.type) {
+    //             return;
+    //         }
 
-            const now = new Date().getTime();
-            if (this.query.type === QUERY_TYPE_POSITION) {
-                /* this.connection.write('M114\n', {
-                    source: WRITE_SOURCE_SERVER
-                }); */
-                this.query.lastQueryTime = now;
-            } else if (this.query.type === QUERY_TYPE_TEMPERATURE) {
-                /* this.connection.write('M105\n', {
-                    source: WRITE_SOURCE_SERVER
-                }); */
-                this.query.lastQueryTime = now;
-            } else {
-                log.error('Unsupported query type:', this.query.type);
-            }
+    //         const now = new Date().getTime();
+    //         if (this.query.type === QUERY_TYPE_POSITION) {
+    //             /* this.connection.write('M114\n', {
+    //                 source: WRITE_SOURCE_SERVER
+    //             }); */
+    //             this.query.lastQueryTime = now;
+    //         } else if (this.query.type === QUERY_TYPE_TEMPERATURE) {
+    //             /* this.connection.write('M105\n', {
+    //                 source: WRITE_SOURCE_SERVER
+    //             }); */
+    //             this.query.lastQueryTime = now;
+    //         } else {
+    //             log.error('Unsupported query type:', this.query.type);
+    //         }
 
-            this.query.type = null;
-        }
-    };
+    //         this.query.type = null;
+    //     }
+    // };
 
-    // Get the current position of the active nozzle and stepper values.
-    queryPosition = (() => {
-        let lastQueryTime = 0;
+    // // Get the current position of the active nozzle and stepper values.
+    // queryPosition = (() => {
+    //     let lastQueryTime = 0;
 
-        return _.throttle(() => {
-            // Check the ready flag
-            if (!(this.ready)) {
-                return;
-            }
+    //     return _.throttle(() => {
+    //         // Check the ready flag
+    //         if (!(this.ready)) {
+    //             return;
+    //         }
 
-            const now = new Date().getTime();
+    //         const now = new Date().getTime();
 
-            if (!this.query.type) {
-                this.query.type = QUERY_TYPE_POSITION;
-                lastQueryTime = now;
-            } else if (lastQueryTime > 0) {
-                const timespan = Math.abs(now - lastQueryTime);
-                const toleranceTime = 5000; // 5 seconds
+    //         if (!this.query.type) {
+    //             this.query.type = QUERY_TYPE_POSITION;
+    //             lastQueryTime = now;
+    //         } else if (lastQueryTime > 0) {
+    //             const timespan = Math.abs(now - lastQueryTime);
+    //             const toleranceTime = 5000; // 5 seconds
 
-                if (timespan >= toleranceTime) {
-                    log.silly(`Reschedule current position query: now=${now}ms, timespan=${timespan}ms`);
-                    this.query.type = QUERY_TYPE_POSITION;
-                    lastQueryTime = now;
-                }
-            }
-        }, 500);
-    })();
+    //             if (timespan >= toleranceTime) {
+    //                 log.silly(`Reschedule current position query: now=${now}ms, timespan=${timespan}ms`);
+    //                 this.query.type = QUERY_TYPE_POSITION;
+    //                 lastQueryTime = now;
+    //             }
+    //         }
+    //     }, 500);
+    // })();
 
-    // Request a temperature report to be sent to the host at some point in the future.
-    queryTemperature = (() => {
-        let lastQueryTime = 0;
+    // // Request a temperature report to be sent to the host at some point in the future.
+    // queryTemperature = (() => {
+    //     let lastQueryTime = 0;
 
-        return _.throttle(() => {
-            // Check the ready flag
-            if (!(this.ready)) {
-                return;
-            }
+    //     return _.throttle(() => {
+    //         // Check the ready flag
+    //         if (!(this.ready)) {
+    //             return;
+    //         }
 
-            const now = new Date().getTime();
+    //         const now = new Date().getTime();
 
-            if (!this.query.type) {
-                this.query.type = QUERY_TYPE_TEMPERATURE;
-                lastQueryTime = now;
-            } else if (lastQueryTime > 0) {
-                const timespan = Math.abs(now - lastQueryTime);
-                const toleranceTime = 10000; // 10 seconds
+    //         if (!this.query.type) {
+    //             this.query.type = QUERY_TYPE_TEMPERATURE;
+    //             lastQueryTime = now;
+    //         } else if (lastQueryTime > 0) {
+    //             const timespan = Math.abs(now - lastQueryTime);
+    //             const toleranceTime = 10000; // 10 seconds
 
-                if (timespan >= toleranceTime) {
-                    log.silly(`Reschedule temperture report query: now=${now}ms, timespan=${timespan}ms`);
-                    this.query.type = QUERY_TYPE_TEMPERATURE;
-                    lastQueryTime = now;
-                }
-            }
-        }, 1000);
-    })();
+    //             if (timespan >= toleranceTime) {
+    //                 log.silly(`Reschedule temperture report query: now=${now}ms, timespan=${timespan}ms`);
+    //                 this.query.type = QUERY_TYPE_TEMPERATURE;
+    //                 lastQueryTime = now;
+    //             }
+    //         }
+    //     }, 1000);
+    // })();
 
     constructor(engine, options) {
         if (!engine) {
@@ -263,7 +261,7 @@ class CirqoidController {
 
                     if (_.includes(['G0', 'G1'], cmd)) {
                         nextState.modal.motion = cmd;
-
+                        log.debug('Test');
                         if (params.F !== undefined) {
                             if (cmd === 'G0') {
                                 nextState.rapidFeedrate = params.F;
@@ -366,7 +364,7 @@ class CirqoidController {
                         log.debug('Wait for the planner to empty');
                         // G4 [P<time in ms>] [S<time in sec>]
                         // If both S and P are included, S takes precedence.
-                        return 'G4 P500'; // dwell
+                        return 'G4 P0.5'; // dwell
                     }
 
                     // Expression
@@ -472,8 +470,8 @@ class CirqoidController {
                 // line="G0 X[posx - 8] Y[ymax]"
                 // > "G0 X2 Y50"
                 line = translateExpression(line, context);
-                //const data = parser.parseLine(line, { flatten: true });
-                //const words = ensureArray(data.words);
+                const data = parser.parseLine(line, { flatten: true });
+                const words = ensureArray(data.words);
 
                 // M109 Set extruder temperature and wait for the target temperature to be reached
                 /* if (_.includes(words, 'M109')) {
@@ -506,6 +504,11 @@ class CirqoidController {
                     this.workflow.pause({ data: 'M6' });
                 } */
 
+                // G90
+                if (_.includes(words, 'G90')) {
+                    log.debug(`G90: line=${sent + 1}, sent=${sent}, received=${received}`);
+                    //this.workflow.pause({ data: 'M6' });
+                }
                 return line;
             }
         });
@@ -707,82 +710,82 @@ class CirqoidController {
             this.emit('serialport:read', res.raw);
         });
 
-        this.queryTimer = setInterval(() => {
-            if (this.isClose()) {
-                // Serial port is closed
-                return;
-            }
+        // this.queryTimer = setInterval(() => {
+        //     if (this.isClose()) {
+        //         // Serial port is closed
+        //         return;
+        //     }
 
-            // Feeder
-            if (this.feeder.peek()) {
-                this.emit('feeder:status', this.feeder.toJSON());
-            }
+        //     // Feeder
+        //     if (this.feeder.peek()) {
+        //         this.emit('feeder:status', this.feeder.toJSON());
+        //     }
 
-            // Sender
-            if (this.sender.peek()) {
-                this.emit('sender:status', this.sender.toJSON());
-            }
+        //     // Sender
+        //     if (this.sender.peek()) {
+        //         this.emit('sender:status', this.sender.toJSON());
+        //     }
 
-            const zeroOffset = _.isEqual(
-                this.runner.getPosition(this.state),
-                this.runner.getPosition(this.runner.state)
-            );
+        //     const zeroOffset = _.isEqual(
+        //         this.runner.getPosition(this.state),
+        //         this.runner.getPosition(this.runner.state)
+        //     );
 
-            // Cirqoid settings
-            if (this.settings !== this.runner.settings) {
-                this.settings = this.runner.settings;
-                this.emit('controller:settings', CIRQOID, this.settings);
-                this.emit('Cirqoid:settings', this.settings); // Backward compatibility
-            }
+        //     // Cirqoid settings
+        //     if (this.settings !== this.runner.settings) {
+        //         this.settings = this.runner.settings;
+        //         this.emit('controller:settings', CIRQOID, this.settings);
+        //         this.emit('Cirqoid:settings', this.settings); // Backward compatibility
+        //     }
 
-            // Cirqoid state
-            if (this.state !== this.runner.state) {
-                this.state = this.runner.state;
-                this.emit('controller:state', CIRQOID, this.state);
-                this.emit('Cirqoid:state', this.state); // Backward compatibility
-            }
+        //     // Cirqoid state
+        //     if (this.state !== this.runner.state) {
+        //         this.state = this.runner.state;
+        //         this.emit('controller:state', CIRQOID, this.state);
+        //         this.emit('Cirqoid:state', this.state); // Backward compatibility
+        //     }
 
-            // Check the ready flag
-            if (!(this.ready)) {
-                return;
-            }
+        //     // Check the ready flag
+        //     if (!(this.ready)) {
+        //         return;
+        //     }
 
-            // M114: Get Current Position
-            this.queryPosition();
+        //     // M114: Get Current Position
+        //     this.queryPosition();
 
-            // M105: Report Temperatures
-            this.queryTemperature();
+        //     // M105: Report Temperatures
+        //     this.queryTemperature();
 
-            { // The following criteria must be met to issue a query
-                const notBusy = !(this.history.writeSource);
-                const senderIdle = (this.sender.state.sent === this.sender.state.received);
-                const feederEmpty = (this.feeder.size() === 0);
+        //     { // The following criteria must be met to issue a query
+        //         const notBusy = !(this.history.writeSource);
+        //         const senderIdle = (this.sender.state.sent === this.sender.state.received);
+        //         const feederEmpty = (this.feeder.size() === 0);
 
-                if (notBusy && senderIdle && feederEmpty) {
-                    this.query.issue();
-                }
-            }
+        //         if (notBusy && senderIdle && feederEmpty) {
+        //             this.query.issue();
+        //         }
+        //     }
 
-            // Check if the machine has stopped movement after completion
-            if (this.senderFinishTime > 0) {
-                const machineIdle = zeroOffset;
-                const now = new Date().getTime();
-                const timespan = Math.abs(now - this.senderFinishTime);
-                const toleranceTime = 500; // in milliseconds
+        //     // Check if the machine has stopped movement after completion
+        //     if (this.senderFinishTime > 0) {
+        //         const machineIdle = zeroOffset;
+        //         const now = new Date().getTime();
+        //         const timespan = Math.abs(now - this.senderFinishTime);
+        //         const toleranceTime = 500; // in milliseconds
 
-                if (!machineIdle) {
-                    // Extend the sender finish time
-                    this.senderFinishTime = now;
-                } else if (timespan > toleranceTime) {
-                    log.silly(`Finished sending G-code: timespan=${timespan}`);
+        //         if (!machineIdle) {
+        //             // Extend the sender finish time
+        //             this.senderFinishTime = now;
+        //         } else if (timespan > toleranceTime) {
+        //             log.silly(`Finished sending G-code: timespan=${timespan}`);
 
-                    this.senderFinishTime = 0;
+        //             this.senderFinishTime = 0;
 
-                    // Stop workflow
-                    this.command('gcode:stop');
-                }
-            }
-        }, 250);
+        //             // Stop workflow
+        //             this.command('gcode:stop');
+        //         }
+        //     }
+        // }, 250);
     }
 
     populateContext(context) {
@@ -841,10 +844,10 @@ class CirqoidController {
     }
 
     destroy() {
-        if (this.queryTimer) {
-            clearInterval(this.queryTimer);
-            this.queryTimer = null;
-        }
+        // if (this.queryTimer) {
+        //     clearInterval(this.queryTimer);
+        //     this.queryTimer = null;
+        // }
 
         if (this.runner) {
             this.runner.removeAllListeners();
