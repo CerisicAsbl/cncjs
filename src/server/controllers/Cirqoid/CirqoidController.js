@@ -296,20 +296,64 @@ class CirqoidController {
                                 nextState.parserstate.feedrate = params.F;
                             }
                         }
-                        if (params.X !== undefined) {
-                            if (this.runner.state.parserstate.modal.distance === 'G91') {
-                                const absolutePos = (Number(params.X) + Number(this.runner.state.status.mpos.x));
-                                data = data.replace('X' + params.X, 'X' + absolutePos);
-                                params.X = absolutePos;
+                        if (nextState.parserstate.modal.wcs === 'G53') {
+                            if (params.X !== undefined) {
+                                if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                    const absolutePos = (Number(params.X) + Number(this.runner.state.status.mpos.x));
+                                    data = data.replace('X' + params.X, 'X' + absolutePos);
+                                    params.X = absolutePos;
+                                }
+                                nextState.status.mpos.x = params.X;
+                                nextState.status.wpos.x = '' + (Number(nextState.status.mpos.x) - Number(nextState.status.wco.x));
                             }
-                            nextState.status.mpos.x = params.X;
+                            if (params.Y !== undefined) {
+                                if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                    const absolutePos = (Number(params.Y) + Number(this.runner.state.status.mpos.y));
+                                    data = data.replace('Y' + params.Y, 'Y' + absolutePos);
+                                    params.Y = absolutePos;
+                                }
+                                nextState.status.mpos.y = params.Y;
+                                nextState.status.wpos.y = '' + (Number(nextState.status.mpos.y) - Number(nextState.status.wco.y));
+                            }
+                            if (params.Z !== undefined) {
+                                if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                    const absolutePos = (Number(params.Z) + Number(this.runner.state.status.mpos.z));
+                                    data = data.replace('Z' + params.Z, 'Z' + absolutePos);
+                                    params.Z = absolutePos;
+                                }
+                                nextState.status.mpos.z = params.Z;
+                                nextState.status.wpos.z = '' + (Number(nextState.status.mpos.z) - Number(nextState.status.wco.z));
+                            }
+                        } else if (nextState.parserstate.modal.wcs === 'G54') {
+                            if (params.X !== undefined) {
+                                if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                    const absolutePos = (Number(params.X) + Number(this.runner.state.status.wpos.x));
+                                    data = data.replace('X' + params.X, 'X' + absolutePos);
+                                    params.X = absolutePos;
+                                }
+                                nextState.status.wpos.x = params.X;
+                                nextState.status.mpos.x = '' + (Number(nextState.status.wpos.x) + Number(nextState.status.wco.x));
+                            }
+                            if (params.Y !== undefined) {
+                                if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                    const absolutePos = (Number(params.Y) + Number(this.runner.state.status.wpos.y));
+                                    data = data.replace('Y' + params.Y, 'Y' + absolutePos);
+                                    params.Y = absolutePos;
+                                }
+                                nextState.status.wpos.y = params.Y;
+                                nextState.status.mpos.y = '' + (Number(nextState.status.wpos.y) + Number(nextState.status.wco.y));
+                            }
+                            if (params.Z !== undefined) {
+                                if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                    const absolutePos = (Number(params.Z) + Number(this.runner.state.status.mpos.z));
+                                    data = data.replace('Z' + params.Z, 'Z' + absolutePos);
+                                    params.Z = absolutePos;
+                                }
+                                nextState.status.wpos.z = params.Z;
+                                nextState.status.mpos.z = '' + (Number(nextState.status.wpos.z) + Number(nextState.status.wco.z));
+                            }
                         }
-                        if (params.Y !== undefined) {
-                            nextState.status.mpos.y = params.Y;
-                        }
-                        if (params.Z !== undefined) {
-                            nextState.status.mpos.z = params.Z;
-                        }
+                        log.debug(nextState);
                     }
 
                     // homing
