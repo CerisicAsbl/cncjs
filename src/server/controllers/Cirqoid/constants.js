@@ -10,7 +10,7 @@ export const CIRQOID_MODAL_GROUPS = [
     },
     { // Work Coordinate System Select (Defaults to G54)
         group: 'wcs',
-        modes: ['G54']
+        modes: ['G53', 'G54']
     },
     { // Spindle State (Defaults to M5)
         group: 'spindle',

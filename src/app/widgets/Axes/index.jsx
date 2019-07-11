@@ -163,12 +163,13 @@ class AxesWidget extends PureComponent {
             }
 
             if (controllerType === CIRQOID) {
-                return get(controllerState, 'modal.wcs') || defaultWCS;
+                return get(controllerState, 'parserstate.modal.wcs') || defaultWCS;
             }
 
             return defaultWCS;
         },
         setWorkOffsets: (axis, value) => {
+            const controllerType = this.state.controller.type;
             const wcs = this.actions.getWorkCoordinateSystem();
             const p = {
                 'G54': 1,
@@ -180,9 +181,15 @@ class AxesWidget extends PureComponent {
             }[wcs] || 0;
             axis = (axis || '').toUpperCase();
             value = Number(value) || 0;
-
-            const gcode = `G10 L20 P${p} ${axis}${value}`;
-            controller.command('gcode', gcode);
+            //const gcode = '';
+            if (controllerType === CIRQOID) {
+                const gcode = `G92 ${axis}${value}`;
+                controller.command('gcode', gcode);
+                controller.command('gcode', 'G54');
+            } else {
+                const gcode = `G10 L20 P${p} ${axis}${value}`;
+                controller.command('gcode', gcode);
+            }
         },
         jog: (params = {}) => {
             const s = map(params, (value, letter) => ('' + letter.toUpperCase() + value)).join(' ');
@@ -531,7 +538,9 @@ class AxesWidget extends PureComponent {
 
             // CIRQOID
             if (type === CIRQOID) {
-                const { pos, modal = {} } = { ...controllerState };
+                const { status, parserstate } = { ...controllerState };
+                const { mpos, wpos } = status;
+                const { modal = {} } = { ...parserstate };
                 const units = {
                     'G20': IMPERIAL_UNITS,
                     'G21': METRIC_UNITS
@@ -544,18 +553,18 @@ class AxesWidget extends PureComponent {
                         type: type,
                         state: controllerState
                     },
-                    // Machine position are reported in current units
+                    // Machine position are reported in mm ($13=0) or inches ($13=1)
                     machinePosition: mapValues({
                         ...state.machinePosition,
-                        ...pos
+                        ...mpos
                     }, (val) => {
                         return (units === IMPERIAL_UNITS) ? in2mm(val) : val;
                     }),
-                    // Work position are reported in current units
+                    // Work position are reported in mm ($13=0) or inches ($13=1)
                     workPosition: mapValues({
                         ...state.workPosition,
-                        ...pos
-                    }, (val) => {
+                        ...wpos
+                    }, val => {
                         return (units === IMPERIAL_UNITS) ? in2mm(val) : val;
                     })
                 }));

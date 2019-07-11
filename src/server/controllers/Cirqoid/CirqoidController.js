@@ -10,7 +10,7 @@ import Workflow, {
     WORKFLOW_STATE_PAUSED,
     WORKFLOW_STATE_RUNNING
 } from '../../lib/Workflow';
-import ensurePositiveNumber from '../../lib/ensure-positive-number';
+// import ensurePositiveNumber from '../../lib/ensure-positive-number';
 import evaluateAssignmentExpression from '../../lib/evaluate-assignment-expression';
 import logger from '../../lib/logger';
 import translateExpression from '../../lib/translate-expression';
@@ -28,9 +28,7 @@ import {
 import CirqoidRunner from './CirqoidRunner';
 import interpret from './interpret';
 import {
-    CIRQOID,
-    QUERY_TYPE_POSITION,
-    QUERY_TYPE_TEMPERATURE
+    CIRQOID
 } from './constants';
 
 // % commands
@@ -134,80 +132,80 @@ class CirqoidController {
                 return;
             }
 
-            const now = new Date().getTime();
-            if (this.query.type === QUERY_TYPE_POSITION) {
-                /* this.connection.write('M114\n', {
-                    source: WRITE_SOURCE_SERVER
-                }); */
-                this.query.lastQueryTime = now;
-            } else if (this.query.type === QUERY_TYPE_TEMPERATURE) {
-                /* this.connection.write('M105\n', {
-                    source: WRITE_SOURCE_SERVER
-                }); */
-                this.query.lastQueryTime = now;
-            } else {
-                log.error('Unsupported query type:', this.query.type);
-            }
+            // const now = new Date().getTime();
+            // if (this.query.type === QUERY_TYPE_POSITION) {
+            //     /* this.connection.write('M114\n', {
+            //         source: WRITE_SOURCE_SERVER
+            //     }); */
+            //     this.query.lastQueryTime = now;
+            // } else if (this.query.type === QUERY_TYPE_TEMPERATURE) {
+            //     /* this.connection.write('M105\n', {
+            //         source: WRITE_SOURCE_SERVER
+            //     }); */
+            //     this.query.lastQueryTime = now;
+            // } else {
+            //     log.error('Unsupported query type:', this.query.type);
+            // }
 
             this.query.type = null;
         }
     };
 
     // Get the current position of the active nozzle and stepper values.
-    queryPosition = (() => {
-        let lastQueryTime = 0;
+    // queryPosition = (() => {
+    //     let lastQueryTime = 0;
 
-        return _.throttle(() => {
-            // Check the ready flag
-            if (!(this.ready)) {
-                return;
-            }
+    //     return _.throttle(() => {
+    //         // Check the ready flag
+    //         if (!(this.ready)) {
+    //             return;
+    //         }
 
-            const now = new Date().getTime();
+    //         const now = new Date().getTime();
 
-            if (!this.query.type) {
-                this.query.type = QUERY_TYPE_POSITION;
-                lastQueryTime = now;
-            } else if (lastQueryTime > 0) {
-                const timespan = Math.abs(now - lastQueryTime);
-                const toleranceTime = 5000; // 5 seconds
+    //         if (!this.query.type) {
+    //             this.query.type = QUERY_TYPE_POSITION;
+    //             lastQueryTime = now;
+    //         } else if (lastQueryTime > 0) {
+    //             const timespan = Math.abs(now - lastQueryTime);
+    //             const toleranceTime = 5000; // 5 seconds
 
-                if (timespan >= toleranceTime) {
-                    log.silly(`Reschedule current position query: now=${now}ms, timespan=${timespan}ms`);
-                    this.query.type = QUERY_TYPE_POSITION;
-                    lastQueryTime = now;
-                }
-            }
-        }, 500);
-    })();
+    //             if (timespan >= toleranceTime) {
+    //                 log.silly(`Reschedule current position query: now=${now}ms, timespan=${timespan}ms`);
+    //                 this.query.type = QUERY_TYPE_POSITION;
+    //                 lastQueryTime = now;
+    //             }
+    //         }
+    //     }, 500);
+    // })();
 
     // Request a temperature report to be sent to the host at some point in the future.
-    queryTemperature = (() => {
-        let lastQueryTime = 0;
+    // queryTemperature = (() => {
+    //     let lastQueryTime = 0;
 
-        return _.throttle(() => {
-            // Check the ready flag
-            if (!(this.ready)) {
-                return;
-            }
+    //     return _.throttle(() => {
+    //         // Check the ready flag
+    //         if (!(this.ready)) {
+    //             return;
+    //         }
 
-            const now = new Date().getTime();
+    //         const now = new Date().getTime();
 
-            if (!this.query.type) {
-                this.query.type = QUERY_TYPE_TEMPERATURE;
-                lastQueryTime = now;
-            } else if (lastQueryTime > 0) {
-                const timespan = Math.abs(now - lastQueryTime);
-                const toleranceTime = 10000; // 10 seconds
+    //         if (!this.query.type) {
+    //             this.query.type = QUERY_TYPE_TEMPERATURE;
+    //             lastQueryTime = now;
+    //         } else if (lastQueryTime > 0) {
+    //             const timespan = Math.abs(now - lastQueryTime);
+    //             const toleranceTime = 10000; // 10 seconds
 
-                if (timespan >= toleranceTime) {
-                    log.silly(`Reschedule temperture report query: now=${now}ms, timespan=${timespan}ms`);
-                    this.query.type = QUERY_TYPE_TEMPERATURE;
-                    lastQueryTime = now;
-                }
-            }
-        }, 1000);
-    })();
+    //             if (timespan >= toleranceTime) {
+    //                 log.silly(`Reschedule temperture report query: now=${now}ms, timespan=${timespan}ms`);
+    //                 this.query.type = QUERY_TYPE_TEMPERATURE;
+    //                 lastQueryTime = now;
+    //             }
+    //         }
+    //     }, 1000);
+    // })();
 
     constructor(engine, options) {
         if (!engine) {
@@ -241,16 +239,37 @@ class CirqoidController {
                 }
 
                 const nextState = {
-                    ...this.runner.state,
-                    modal: {
-                        ...this.runner.state.modal
-                    }
+                    ...this.runner.state//,
+                    // modal: {
+                    //     ...this.runner.state.modal
+                    // }
                 };
+                // const nextState = {
+                //     ...this.runner.state,
+                //     status: {
+                //         ...this.runner.status,
+                //         mpos: {
+                //             ...this.runner.status.mpos
+                //         },
+                //         wpos: {
+                //             ...this.runner.status.wpos
+                //         },
+                //         vco: {
+                //             ...this.runner.status.vco
+                //         }
+                //     },
+                //     parserstate: {
+                //         ...this.runner.parserstate,
+                //         modal: {
+                //             ...this.runner.modal
+                //         }
+                //     }
+                // };
 
                 interpret(line, (cmd, params) => {
                     // motion
                     /* if (_.includes(['G0', 'G1', 'G2', 'G3', 'G38.2', 'G38.3', 'G38.4', 'G38.5', 'G80'], cmd)) {
-                        nextState.modal.motion = cmd;
+                        nextState.parserstate.modal.motion = cmd;
 
                         if (params.F !== undefined) {
                             if (cmd === 'G0') {
@@ -262,76 +281,91 @@ class CirqoidController {
                     } */
 
                     if (_.includes(['G0', 'G1'], cmd)) {
-                        nextState.modal.motion = cmd;
+                        nextState.parserstate.modal.motion = cmd;
                         if (params.F !== undefined) {
                             if (cmd === 'G0') {
-                                nextState.rapidFeedrate = params.F;
+                                nextState.parserstate.rapidFeedrate = params.F;
                             } else {
-                                nextState.feedrate = params.F;
+                                nextState.parserstate.feedrate = params.F;
                             }
                         }
+                        if (params.X !== undefined) {
+                            nextState.status.mpos.x = params.X;
+                        }
+                        if (params.Y !== undefined) {
+                            nextState.status.mpos.y = params.Y;
+                        }
+                        if (params.Z !== undefined) {
+                            nextState.status.mpos.z = params.Z;
+                        }
+                        log.debug(cmd);
+                        log.debug(nextState);
+                    }
+
+                    // homing
+                    if (_.includes(['G28'], cmd)) {
+                        nextState.status.mpos.x = '0.000';
+                        nextState.status.mpos.y = '0.000';
+                        nextState.status.mpos.z = '0.000';
+                        log.debug(cmd);
+                        log.debug(nextState);
                     }
 
                     // wcs
-                    if (_.includes(['G54'], cmd)) {
-                        nextState.modal.wcs = cmd;
+                    if (_.includes(['G53', 'G54'], cmd)) {
+                        nextState.parserstate.modal.wcs = cmd;
                     }
 
                     // plane
                     /* if (_.includes(['G17', 'G18', 'G19'], cmd)) {
                         // G17: xy-plane, G18: xz-plane, G19: yz-plane
-                        nextState.modal.plane = cmd;
+                        nextState.parserstate.modal.plane = cmd;
                     } */
 
                     // units
-                    /* if (_.includes(['G21'], cmd)) {
+                    if (_.includes(['G20', 'G21'], cmd)) {
                         // G20: Inches, G21: Millimeters
-                        nextState.modal.units = cmd;
-                    } */
+                        nextState.parserstate.modal.units = cmd;
+                    }
 
-                    /* // distance
+                    // distance
                     if (_.includes(['G90', 'G91'], cmd)) {
                         // G90: Absolute, G91: Relative
-                        nextState.modal.distance = cmd;
-                    } */
+                        nextState.parserstate.modal.distance = cmd;
+                    }
+
+                    // WCO
+                    if (_.includes(['G92'], cmd)) {
+                        if (params.X !== undefined) {
+                            nextState.status.wco.x = params.X;
+                        }
+                        if (params.Y !== undefined) {
+                            nextState.status.wco.y = params.Y;
+                        }
+                        if (params.Z !== undefined) {
+                            nextState.status.wco.z = params.Z;
+                        }
+                        log.debug(cmd);
+                        log.debug(nextState);
+                    }
 
                     // feedrate
                     /* if (_.includes(['G93', 'G94'], cmd)) {
                         // G93: Inverse time mode, G94: Units per minute
-                        nextState.modal.feedrate = cmd;
-                    } */
-
-                    // program
-                    /* if (_.includes(['M0', 'M1', 'M2', 'M30'], cmd)) {
-                        nextState.modal.program = cmd;
+                        nextState.parserstate.modal.feedrate = cmd;
                     } */
 
                     // spindle or head
                     if (_.includes(['M3', 'M4', 'M5'], cmd)) {
                         // M3: Spindle (cw), M4: Spindle (ccw), M5: Spindle off
-                        nextState.modal.spindle = cmd;
+                        nextState.parserstate.modal.spindle = cmd;
 
                         if (cmd === 'M3' || cmd === 'M4') {
                             if (params.S !== undefined) {
-                                nextState.spindle = params.S;
+                                nextState.parserstate.spindle = params.S;
                             }
                         }
                     }
-
-                    // coolant
-                    /* if (_.includes(['M7', 'M8', 'M9'], cmd)) {
-                        const coolant = nextState.modal.coolant;
-
-                        // M7: Mist coolant, M8: Flood coolant, M9: Coolant off, [M7,M8]: Both on
-                        if (cmd === 'M9' || coolant === 'M9') {
-                            nextState.modal.coolant = cmd;
-                        } else {
-                            nextState.modal.coolant = _.uniq(ensureArray(coolant).concat(cmd)).sort();
-                            if (nextState.modal.coolant.length === 1) {
-                                nextState.modal.coolant = nextState.modal.coolant[0];
-                            }
-                        }
-                    } */
                 });
 
                 if (!_.isEqual(this.runner.state, nextState)) {
@@ -357,7 +391,7 @@ class CirqoidController {
             dataFilter: (line, context) => {
                 // Remove comments that start with a semicolon `;`
                 line = line.replace(/\s*;.*/g, '').trim();
-                const filteredGcodes = ['G90', 'G91'];
+                const filteredGcodes = ['G20', 'G21', 'G90', 'G91'];
                 for (let filteredGcode of filteredGcodes) {
                     line = line.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '').trim();
                 }
@@ -759,10 +793,9 @@ class CirqoidController {
     populateContext(context) {
         // Work position
         const {
-            x: posx,
-            y: posy,
-            z: posz,
-            e: pose
+            x: mposx,
+            y: mposy,
+            z: mposz
         } = this.runner.getPosition();
 
         // Modal group
@@ -784,10 +817,10 @@ class CirqoidController {
             zmax: Number(context.zmax) || 0,
 
             // Work position
-            posx: Number(posx) || 0,
-            posy: Number(posy) || 0,
-            posz: Number(posz) || 0,
-            pose: Number(pose) || 0,
+            mposx: Number(mposx) || 0,
+            mposy: Number(mposy) || 0,
+            mposz: Number(mposz) || 0,
+            // pose: Number(mpose) || 0,
 
             // Modal group
             modal: {
@@ -1192,7 +1225,7 @@ class CirqoidController {
                     spindleOverride += value;
                 }
                 // M221: Set extruder factor override percentage
-                this.command('gcode', 'M221S' + spindleOverride);
+                // this.command('gcode', 'M221S' + spindleOverride);
 
                 // enforce state change
                 this.runner.state = {
@@ -1210,30 +1243,6 @@ class CirqoidController {
             'motor:disable': () => {
                 // M18/M84 Disable steppers immediately (until the next move)
                 this.command('gcode', 'M18');
-            },
-            'laser:on': () => {
-                const [power = 0, maxS = 255] = args;
-                const commands = [
-                    'M3S' + ensurePositiveNumber(maxS * (power / 100))
-                ];
-
-                this.command('gcode', commands);
-            },
-            'lasertest:on': () => {
-                const [power = 0, duration = 0, maxS = 255] = args;
-                const commands = [
-                    'M3S' + ensurePositiveNumber(maxS * (power / 100))
-                ];
-                if (duration > 0) {
-                    // G4 [P<time in ms>] [S<time in sec>]
-                    // If both S and P are included, S takes precedence.
-                    commands.push('G4 P' + ensurePositiveNumber(duration));
-                    commands.push('M5');
-                }
-                this.command('gcode', commands);
-            },
-            'lasertest:off': () => {
-                this.writeln('M5');
             },
             'gcode': () => {
                 const [commands, context] = args;
