@@ -1,5 +1,5 @@
 import ensureArray from 'ensure-array';
-import * as parser from 'gcode-parser';
+//import * as parser from 'gcode-parser';
 import _ from 'lodash';
 import SerialConnection from '../../lib/SerialConnection';
 import EventTrigger from '../../lib/EventTrigger';
@@ -228,6 +228,14 @@ class CirqoidController {
             rtscts: rtscts,
             writeFilter: (data, context) => {
                 const { source = null } = { ...context };
+                // log.debug(data);
+                // data = data.replace(/\s*;.*/g, '').trim();
+                // const filteredGcodes = ['G20', 'G21', 'G90', 'G91'];
+                // for (let filteredGcode of filteredGcodes) {
+                //     data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
+                // }
+                // const line = data;//.trim();
+                log.debug(data);
                 const line = data.trim();
 
                 // Update write history
@@ -279,7 +287,6 @@ class CirqoidController {
                             }
                         }
                     } */
-
                     if (_.includes(['G0', 'G1'], cmd)) {
                         nextState.parserstate.modal.motion = cmd;
                         if (params.F !== undefined) {
@@ -290,6 +297,11 @@ class CirqoidController {
                             }
                         }
                         if (params.X !== undefined) {
+                            if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                const absolutePos = (Number(params.X) + Number(this.runner.state.status.mpos.x));
+                                data = data.replace('X' + params.X, 'X' + absolutePos);
+                                params.X = absolutePos;
+                            }
                             nextState.status.mpos.x = params.X;
                         }
                         if (params.Y !== undefined) {
@@ -298,8 +310,6 @@ class CirqoidController {
                         if (params.Z !== undefined) {
                             nextState.status.mpos.z = params.Z;
                         }
-                        log.debug(cmd);
-                        log.debug(nextState);
                     }
 
                     // homing
@@ -307,8 +317,6 @@ class CirqoidController {
                         nextState.status.mpos.x = '0.000';
                         nextState.status.mpos.y = '0.000';
                         nextState.status.mpos.z = '0.000';
-                        log.debug(cmd);
-                        log.debug(nextState);
                     }
 
                     // wcs
@@ -326,12 +334,22 @@ class CirqoidController {
                     if (_.includes(['G20', 'G21'], cmd)) {
                         // G20: Inches, G21: Millimeters
                         nextState.parserstate.modal.units = cmd;
+                        const filteredGcodes = ['G20', 'G21'];
+                        for (let filteredGcode of filteredGcodes) {
+                            data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
+                        }
+                        this.runner.emit('ok', '');
                     }
 
                     // distance
                     if (_.includes(['G90', 'G91'], cmd)) {
                         // G90: Absolute, G91: Relative
                         nextState.parserstate.modal.distance = cmd;
+                        const filteredGcodes = ['G90', 'G91'];
+                        for (let filteredGcode of filteredGcodes) {
+                            data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
+                        }
+                        this.runner.emit('ok', '');
                     }
 
                     // WCO
@@ -345,8 +363,6 @@ class CirqoidController {
                         if (params.Z !== undefined) {
                             nextState.status.wco.z = params.Z;
                         }
-                        log.debug(cmd);
-                        log.debug(nextState);
                     }
 
                     // feedrate
@@ -371,7 +387,7 @@ class CirqoidController {
                 if (!_.isEqual(this.runner.state, nextState)) {
                     this.runner.state = nextState; // enforce change
                 }
-
+                log.debug(data);
                 return data;
             }
         });
@@ -390,11 +406,6 @@ class CirqoidController {
         this.feeder = new Feeder({
             dataFilter: (line, context) => {
                 // Remove comments that start with a semicolon `;`
-                line = line.replace(/\s*;.*/g, '').trim();
-                const filteredGcodes = ['G20', 'G21', 'G90', 'G91'];
-                for (let filteredGcode of filteredGcodes) {
-                    line = line.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '').trim();
-                }
                 context = this.populateContext(context);
 
                 if (line[0] === '%') {
@@ -415,8 +426,15 @@ class CirqoidController {
                 // line="G0 X[posx - 8] Y[ymax]"
                 // > "G0 X2 Y50"
                 line = translateExpression(line, context);
-                //const data = parser.parseLine(line, { flatten: true });
-                //const words = ensureArray(data.words);
+                // const data = parser.parseLine(line, { flatten: true });
+                // const words = ensureArray(data.words);
+                // log.debug(line);
+                // log.debug(data);
+                // log.debug(words);
+                // if (_.includes(['G0', 'G1'], words)) {
+                //     log.debug('G0 or G1');
+                //     log.debug(line);
+                // }
 
                 // M109 Set extruder temperature and wait for the target temperature to be reached
                 /* if (_.includes(words, 'M109')) {
@@ -509,8 +527,15 @@ class CirqoidController {
                 // line="G0 X[posx - 8] Y[ymax]"
                 // > "G0 X2 Y50"
                 line = translateExpression(line, context);
-                const data = parser.parseLine(line, { flatten: true });
-                const words = ensureArray(data.words);
+                // const data = parser.parseLine(line, { flatten: true });
+                // const words = ensureArray(data.words);
+                // log.debug(line);
+                // log.debug(data);
+                // log.debug(words);
+                // if (_.includes(['G0', 'G1'], words)) {
+                //     log.debug('G0 or G1');
+                //     log.debug(line);
+                // }
 
                 // M109 Set extruder temperature and wait for the target temperature to be reached
                 /* if (_.includes(words, 'M109')) {
@@ -543,11 +568,6 @@ class CirqoidController {
                     this.workflow.pause({ data: 'M6' });
                 } */
 
-                // G90
-                if (_.includes(words, 'G90')) {
-                    log.debug(`G90: line=${sent + 1}, sent=${sent}, received=${received}`);
-                    //this.workflow.pause({ data: 'M6' });
-                }
                 return line;
             }
         });

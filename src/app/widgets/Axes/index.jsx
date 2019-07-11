@@ -185,7 +185,7 @@ class AxesWidget extends PureComponent {
             if (controllerType === CIRQOID) {
                 const gcode = `G92 ${axis}${value}`;
                 controller.command('gcode', gcode);
-                controller.command('gcode', 'G54');
+                //controller.command('gcode', 'G54');
             } else {
                 const gcode = `G10 L20 P${p} ${axis}${value}`;
                 controller.command('gcode', gcode);
