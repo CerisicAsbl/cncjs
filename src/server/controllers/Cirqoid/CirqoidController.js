@@ -247,46 +247,10 @@ class CirqoidController {
                 }
 
                 const nextState = {
-                    ...this.runner.state//,
-                    // modal: {
-                    //     ...this.runner.state.modal
-                    // }
+                    ...this.runner.state
                 };
-                // const nextState = {
-                //     ...this.runner.state,
-                //     status: {
-                //         ...this.runner.status,
-                //         mpos: {
-                //             ...this.runner.status.mpos
-                //         },
-                //         wpos: {
-                //             ...this.runner.status.wpos
-                //         },
-                //         vco: {
-                //             ...this.runner.status.vco
-                //         }
-                //     },
-                //     parserstate: {
-                //         ...this.runner.parserstate,
-                //         modal: {
-                //             ...this.runner.modal
-                //         }
-                //     }
-                // };
 
                 interpret(line, (cmd, params) => {
-                    // motion
-                    /* if (_.includes(['G0', 'G1', 'G2', 'G3', 'G38.2', 'G38.3', 'G38.4', 'G38.5', 'G80'], cmd)) {
-                        nextState.parserstate.modal.motion = cmd;
-
-                        if (params.F !== undefined) {
-                            if (cmd === 'G0') {
-                                nextState.rapidFeedrate = params.F;
-                            } else {
-                                nextState.feedrate = params.F;
-                            }
-                        }
-                    } */
                     if (_.includes(['G0', 'G1'], cmd)) {
                         nextState.parserstate.modal.motion = cmd;
                         if (params.F !== undefined) {
@@ -356,6 +320,12 @@ class CirqoidController {
                         log.debug(nextState);
                     }
 
+                    // pausing
+                    if (_.includes(['G4'], cmd)) {
+                        // mistake in the cirqoid firmware: P parameter is considered in seconds and not in ms
+                        data = data.replace('P' + params.P, 'P' + (Number(params.P)/1000.0));
+                    }
+
                     // homing
                     if (_.includes(['G28'], cmd)) {
                         nextState.status.mpos.x = '0.000';
@@ -367,12 +337,6 @@ class CirqoidController {
                     if (_.includes(['G53', 'G54'], cmd)) {
                         nextState.parserstate.modal.wcs = cmd;
                     }
-
-                    // plane
-                    /* if (_.includes(['G17', 'G18', 'G19'], cmd)) {
-                        // G17: xy-plane, G18: xz-plane, G19: yz-plane
-                        nextState.parserstate.modal.plane = cmd;
-                    } */
 
                     // units
                     if (_.includes(['G20', 'G21'], cmd)) {
@@ -410,10 +374,15 @@ class CirqoidController {
                     }
 
                     // feedrate
-                    /* if (_.includes(['G93', 'G94'], cmd)) {
+                    if (_.includes(['G93', 'G94'], cmd)) {
                         // G93: Inverse time mode, G94: Units per minute
                         nextState.parserstate.modal.feedrate = cmd;
-                    } */
+                        const filteredGcodes = ['G93', 'G94'];
+                        for (let filteredGcode of filteredGcodes) {
+                            data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
+                        }
+                        this.runner.emit('ok', '');
+                    }
 
                     // spindle or head
                     if (_.includes(['M3', 'M4', 'M5'], cmd)) {
@@ -458,7 +427,7 @@ class CirqoidController {
                         log.debug('Wait for the planner to empty');
                         // G4 [P<time in ms>] [S<time in sec>]
                         // If both S and P are included, S takes precedence.
-                        return 'G4 P0.5'; // dwell
+                        return 'G4 P500'; // dwell
                     }
 
                     // Expression
@@ -470,44 +439,6 @@ class CirqoidController {
                 // line="G0 X[posx - 8] Y[ymax]"
                 // > "G0 X2 Y50"
                 line = translateExpression(line, context);
-                // const data = parser.parseLine(line, { flatten: true });
-                // const words = ensureArray(data.words);
-                // log.debug(line);
-                // log.debug(data);
-                // log.debug(words);
-                // if (_.includes(['G0', 'G1'], words)) {
-                //     log.debug('G0 or G1');
-                //     log.debug(line);
-                // }
-
-                // M109 Set extruder temperature and wait for the target temperature to be reached
-                /* if (_.includes(words, 'M109')) {
-                    log.debug(`Wait for extruder temperature to reach target temperature (${line})`);
-                    this.feeder.hold({ data: 'M109' }); // Hold reason
-                } */
-
-                // M190 Set heated bed temperature and wait for the target temperature to be reached
-                /* if (_.includes(words, 'M190')) {
-                    log.debug(`Wait for heated bed temperature to reach target temperature (${line})`);
-                    this.feeder.hold({ data: 'M190' }); // Hold reason
-                }
- */
-                /* { // Program Mode: M0, M1
-                    const programMode = _.intersection(words, ['M0', 'M1'])[0];
-                    if (programMode === 'M0') {
-                        log.debug('M0 Program Pause');
-                        this.feeder.hold({ data: 'M0' }); // Hold reason
-                    } else if (programMode === 'M1') {
-                        log.debug('M1 Program Pause');
-                        this.feeder.hold({ data: 'M1' }); // Hold reason
-                    }
-                } */
-
-                /* // M6 Tool Change
-                if (_.includes(words, 'M6')) {
-                    log.debug('M6 Tool Change');
-                    this.feeder.hold({ data: 'M6' }); // Hold reason
-                } */
 
                 return line;
             }
