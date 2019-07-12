@@ -253,32 +253,17 @@ class CirqoidController {
                             }
                         }
                         if (nextState.parserstate.modal.wcs === 'G53') {
-                            if (params.X !== undefined) {
-                                if (this.runner.state.parserstate.modal.distance === 'G91') {
-                                    const absolutePos = (Number(params.X) + Number(this.runner.state.status.mpos.x));
-                                    data = data.replace('X' + params.X, 'X' + absolutePos);
-                                    params.X = absolutePos;
+                            for (let axis of ['x', 'y', 'z']) {
+                                if (params[axis.toUpperCase()] !== undefined) {
+                                    if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                        let absolutePos = Math.min((Number(params[axis.toUpperCase()]) + Number(this.runner.state.status.mpos[axis])), this.runner.state.status.maxpos[axis]);
+                                        absolutePos = Math.max(absolutePos, this.runner.state.status.minpos[axis]);
+                                        data = data.replace(axis.toUpperCase() + params[axis.toUpperCase()], axis.toUpperCase() + absolutePos);
+                                        params[axis.toUpperCase()] = absolutePos;
+                                    }
+                                    nextState.status.mpos[axis] = params[axis.toUpperCase()];
+                                    nextState.status.wpos[axis] = '' + (Number(nextState.status.mpos[axis]) - Number(nextState.status.wco[axis]));
                                 }
-                                nextState.status.mpos.x = params.X;
-                                nextState.status.wpos.x = '' + (Number(nextState.status.mpos.x) - Number(nextState.status.wco.x));
-                            }
-                            if (params.Y !== undefined) {
-                                if (this.runner.state.parserstate.modal.distance === 'G91') {
-                                    const absolutePos = (Number(params.Y) + Number(this.runner.state.status.mpos.y));
-                                    data = data.replace('Y' + params.Y, 'Y' + absolutePos);
-                                    params.Y = absolutePos;
-                                }
-                                nextState.status.mpos.y = params.Y;
-                                nextState.status.wpos.y = '' + (Number(nextState.status.mpos.y) - Number(nextState.status.wco.y));
-                            }
-                            if (params.Z !== undefined) {
-                                if (this.runner.state.parserstate.modal.distance === 'G91') {
-                                    const absolutePos = (Number(params.Z) + Number(this.runner.state.status.mpos.z));
-                                    data = data.replace('Z' + params.Z, 'Z' + absolutePos);
-                                    params.Z = absolutePos;
-                                }
-                                nextState.status.mpos.z = params.Z;
-                                nextState.status.wpos.z = '' + (Number(nextState.status.mpos.z) - Number(nextState.status.wco.z));
                             }
                         } else if (nextState.parserstate.modal.wcs === 'G54') {
                             if (params.X !== undefined) {
@@ -491,49 +476,7 @@ class CirqoidController {
                     return '';
                 }
 
-                // line="G0 X[posx - 8] Y[ymax]"
-                // > "G0 X2 Y50"
                 line = translateExpression(line, context);
-                // const data = parser.parseLine(line, { flatten: true });
-                // const words = ensureArray(data.words);
-                // log.debug(line);
-                // log.debug(data);
-                // log.debug(words);
-                // if (_.includes(['G0', 'G1'], words)) {
-                //     log.debug('G0 or G1');
-                //     log.debug(line);
-                // }
-
-                // M109 Set extruder temperature and wait for the target temperature to be reached
-                /* if (_.includes(words, 'M109')) {
-                    log.debug(`Wait for extruder temperature to reach target temperature (${line}): line=${sent + 1}, sent=${sent}, received=${received}`);
-                    const reason = { data: 'M109' };
-                    this.sender.hold(reason); // Hold reason
-                } */
-
-                // M190 Set heated bed temperature and wait for the target temperature to be reached
-                /* if (_.includes(words, 'M190')) {
-                    log.debug(`Wait for heated bed temperature to reach target temperature (${line}): line=${sent + 1}, sent=${sent}, received=${received}`);
-                    const reason = { data: 'M190' };
-                    this.sender.hold(reason); // Hold reason
-                } */
-
-                /* { // Program Mode: M0, M1
-                    const programMode = _.intersection(words, ['M0', 'M1'])[0];
-                    if (programMode === 'M0') {
-                        log.debug(`M0 Program Pause: line=${sent + 1}, sent=${sent}, received=${received}`);
-                        this.workflow.pause({ data: 'M0' });
-                    } else if (programMode === 'M1') {
-                        log.debug(`M1 Program Pause: line=${sent + 1}, sent=${sent}, received=${received}`);
-                        this.workflow.pause({ data: 'M1' });
-                    }
-                } */
-
-                /* // M6 Tool Change
-                if (_.includes(words, 'M6')) {
-                    log.debug(`M6 Tool Change: line=${sent + 1}, sent=${sent}, received=${received}`);
-                    this.workflow.pause({ data: 'M6' });
-                } */
 
                 return line;
             }
@@ -739,22 +682,6 @@ class CirqoidController {
                 return;
             }
 
-            // // M114: Get Current Position
-            // this.queryPosition();
-
-            // // M105: Report Temperatures
-            // this.queryTemperature();
-
-            // { // The following criteria must be met to issue a query
-            //     const notBusy = !(this.history.writeSource);
-            //     const senderIdle = (this.sender.state.sent === this.sender.state.received);
-            //     const feederEmpty = (this.feeder.size() === 0);
-
-            //     if (notBusy && senderIdle && feederEmpty) {
-            //         this.query.issue();
-            //     }
-            // }
-
             // Check if the machine has stopped movement after completion
             if (this.senderFinishTime > 0) {
                 const machineIdle = zeroOffset;
@@ -832,11 +759,6 @@ class CirqoidController {
     }
 
     destroy() {
-        // if (this.queryTimer) {
-        //     clearInterval(this.queryTimer);
-        //     this.queryTimer = null;
-        // }
-
         if (this.runner) {
             this.runner.removeAllListeners();
             this.runner = null;
@@ -1175,61 +1097,21 @@ class CirqoidController {
             // Feed Overrides
             // @param {number} value A percentage value between 10 and 500. A value of zero will reset to 100%.
             'feedOverride': () => {
-                const [value] = args;
-                let feedOverride = this.runner.state.ovF;
-
-                if (value === 0) {
-                    feedOverride = 100;
-                } else if ((feedOverride + value) > 500) {
-                    feedOverride = 500;
-                } else if ((feedOverride + value) < 10) {
-                    feedOverride = 10;
-                } else {
-                    feedOverride += value;
-                }
-                // M220: Set speed factor override percentage
-                // this.command('gcode', 'M220S' + feedOverride);
-
-                // enforce state change
-                this.runner.state = {
-                    ...this.runner.state,
-                    ovF: feedOverride
-                };
+                // Unsupported
             },
             // Spindle Speed Overrides
             // @param {number} value A percentage value between 10 and 500. A value of zero will reset to 100%.
             'spindleOverride': () => {
-                const [value] = args;
-                let spindleOverride = this.runner.state.ovS;
-
-                if (value === 0) {
-                    spindleOverride = 100;
-                } else if ((spindleOverride + value) > 500) {
-                    spindleOverride = 500;
-                } else if ((spindleOverride + value) < 10) {
-                    spindleOverride = 10;
-                } else {
-                    spindleOverride += value;
-                }
-                // M221: Set extruder factor override percentage
-                // this.command('gcode', 'M221S' + spindleOverride);
-
-                // enforce state change
-                this.runner.state = {
-                    ...this.runner.state,
-                    ovS: spindleOverride
-                };
+                // Unsupported
             },
             'rapidOverride': () => {
                 // Unsupported
             },
             'motor:enable': () => {
-                // M17 Enable all stepper motors
-                this.command('gcode', 'M17');
+                // Unsupported
             },
             'motor:disable': () => {
-                // M18/M84 Disable steppers immediately (until the next move)
-                this.command('gcode', 'M18');
+                // Unsupported
             },
             'gcode': () => {
                 const [commands, context] = args;
