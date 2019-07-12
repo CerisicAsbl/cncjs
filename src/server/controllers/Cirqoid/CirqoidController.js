@@ -228,14 +228,6 @@ class CirqoidController {
             rtscts: rtscts,
             writeFilter: (data, context) => {
                 const { source = null } = { ...context };
-                // log.debug(data);
-                // data = data.replace(/\s*;.*/g, '').trim();
-                // const filteredGcodes = ['G20', 'G21', 'G90', 'G91'];
-                // for (let filteredGcode of filteredGcodes) {
-                //     data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
-                // }
-                // const line = data;//.trim();
-                log.debug(data);
                 const line = data.trim();
 
                 // Update write history
@@ -317,7 +309,7 @@ class CirqoidController {
                                 nextState.status.mpos.z = '' + (Number(nextState.status.wpos.z) + Number(nextState.status.wco.z));
                             }
                         }
-                        log.debug(nextState);
+                        log.debug(nextState.status.mpos);
                     }
 
                     // pausing
@@ -490,7 +482,7 @@ class CirqoidController {
 
                         // G4 [P<time in ms>] [S<time in sec>]
                         // If both S and P are included, S takes precedence.
-                        return 'G4 P0.5'; // dwell
+                        return 'G4 P500'; // dwell
                     }
 
                     // Expression
