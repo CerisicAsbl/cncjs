@@ -190,7 +190,7 @@ class CirqoidController {
                                         data = data.replace(axis.toUpperCase() + params[axis.toUpperCase()], axis.toUpperCase() + absolutePos);
                                         params[axis.toUpperCase()] = absolutePos;
                                     }
-                                    nextState.status.mpos[axis] = params[axis.toUpperCase()];
+                                    nextState.status.mpos[axis] = '' + params[axis.toUpperCase()];
                                     nextState.status.wpos[axis] = '' + (Number(nextState.status.mpos[axis]) - Number(nextState.status.wco[axis]));
                                 }
                             }
@@ -205,7 +205,7 @@ class CirqoidController {
                                         data = data.replace(axis.toUpperCase() + params[axis.toUpperCase()], axis.toUpperCase() + absolutePos);
                                         params[axis.toUpperCase()] = absolutePos;
                                     }
-                                    nextState.status.wpos[axis] = params[axis.toUpperCase()];
+                                    nextState.status.wpos[axis] = '' + params[axis.toUpperCase()];
                                     nextState.status.mpos[axis] = '' + (Number(nextState.status.wpos[axis]) + Number(nextState.status.wco[axis]));
                                 }
                             }
@@ -575,8 +575,8 @@ class CirqoidController {
             }
 
             const zeroOffset = _.isEqual(
-                this.runner.getPosition(this.state),
-                this.runner.getPosition(this.runner.state)
+                this.runner.getWorkPosition(this.state),
+                this.runner.getWorkPosition(this.runner.state)
             );
 
             // Cirqoid settings
@@ -588,10 +588,13 @@ class CirqoidController {
 
             // Cirqoid state
             if (this.state !== this.runner.state) {
+                log.debug('state changed');
                 this.state = this.runner.state;
                 this.emit('controller:state', CIRQOID, this.state);
                 this.emit('Cirqoid:state', this.state); // Backward compatibility
             }
+            this.state = this.runner.state;
+            this.emit('controller:state', CIRQOID, this.state);
 
             // Check the ready flag
             if (!(this.ready)) {
@@ -621,12 +624,19 @@ class CirqoidController {
     }
 
     populateContext(context) {
-        // Work position
+        // MAchine position
         const {
             x: mposx,
             y: mposy,
             z: mposz
-        } = this.runner.getPosition();
+        } = this.runner.getMachinePosition();
+
+        // Work position
+        const {
+            x: posx,
+            y: posy,
+            z: posz
+        } = this.runner.getWorkPosition();
 
         // Modal group
         const modal = this.runner.getModalGroup();
@@ -646,11 +656,16 @@ class CirqoidController {
             zmin: Number(context.zmin) || 0,
             zmax: Number(context.zmax) || 0,
 
-            // Work position
+            // Machine position
             mposx: Number(mposx) || 0,
             mposy: Number(mposy) || 0,
             mposz: Number(mposz) || 0,
             // pose: Number(mpose) || 0,
+
+            // Work position
+            posx: Number(posx) || 0,
+            posy: Number(posy) || 0,
+            posz: Number(posz) || 0,
 
             // Modal group
             modal: {
@@ -675,6 +690,11 @@ class CirqoidController {
     }
 
     destroy() {
+        if (this.queryTimer) {
+            clearInterval(this.queryTimer);
+            this.queryTimer = null;
+        }
+
         if (this.runner) {
             this.runner.removeAllListeners();
             this.runner = null;
