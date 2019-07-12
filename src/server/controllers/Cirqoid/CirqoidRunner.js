@@ -12,7 +12,7 @@ import CirqoidLineParserResultError from './CirqoidLineParserResultError';
 class CirqoidRunner extends events.EventEmitter {
     state = {
         status: {
-            activeState: '',
+            activeState: 'Idle',
             mpos: {
                 x: '0.000',
                 y: '0.000',

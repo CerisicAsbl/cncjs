@@ -28,7 +28,9 @@ import {
 import CirqoidRunner from './CirqoidRunner';
 import interpret from './interpret';
 import {
-    CIRQOID
+    CIRQOID,
+    CIRQOID_ACTIVE_STATE_IDLE,
+    CIRQOID_ACTIVE_STATE_BUSY
 } from './constants';
 
 // % commands
@@ -292,7 +294,7 @@ class CirqoidController {
                 if (!_.isEqual(this.runner.state, nextState)) {
                     this.runner.state = nextState; // enforce change
                 }
-                log.debug('data:' + data);
+                log.debug('Sent data: ' + data.trim());
                 return data;
             }
         });
@@ -360,7 +362,8 @@ class CirqoidController {
             this.connection.write(line + '\n', {
                 source: WRITE_SOURCE_FEEDER
             });
-            this.feeder.hold();
+            //this.feeder.hold();
+            this.runner.state.status.activeState = CIRQOID_ACTIVE_STATE_BUSY;
             log.silly(`> ${line}`);
         });
         this.feeder.on('hold', noop);
@@ -474,6 +477,7 @@ class CirqoidController {
         });
 
         this.runner.on('ok', (res) => {
+            this.runner.state.status.activeState = CIRQOID_ACTIVE_STATE_IDLE;
             log.silly(`controller.on('ok'): source=${this.history.writeSource}, line=${JSON.stringify(this.history.writeLine)}, res=${JSON.stringify(res)}`);
             if (res) {
                 if (_.includes([WRITE_SOURCE_CLIENT, WRITE_SOURCE_FEEDER], this.history.writeSource)) {
@@ -520,9 +524,11 @@ class CirqoidController {
             }
 
             // Feeder
-            this.feeder.unhold();
-            if (this.feeder.next()) {
-                return;
+            // this.feeder.unhold();
+            if (this.sender.state.sent === this.sender.state.received) {
+                if (this.feeder.next()) {
+                    return;
+                }
             }
 
             this.query.issue();
