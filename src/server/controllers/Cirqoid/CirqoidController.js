@@ -323,7 +323,7 @@ class CirqoidController {
                     // pausing
                     if (_.includes(['G4'], cmd)) {
                         // mistake in the cirqoid firmware: P parameter is considered in seconds and not in ms
-                        data = data.replace('P' + params.P, 'P' + (Number(params.P)/1000.0));
+                        data = data.replace('P' + params.P, 'P' + (Number(params.P) / 1000.0));
                     }
 
                     // homing
