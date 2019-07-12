@@ -131,81 +131,9 @@ class CirqoidController {
             if (!this.query.type) {
                 return;
             }
-
-            // const now = new Date().getTime();
-            // if (this.query.type === QUERY_TYPE_POSITION) {
-            //     /* this.connection.write('M114\n', {
-            //         source: WRITE_SOURCE_SERVER
-            //     }); */
-            //     this.query.lastQueryTime = now;
-            // } else if (this.query.type === QUERY_TYPE_TEMPERATURE) {
-            //     /* this.connection.write('M105\n', {
-            //         source: WRITE_SOURCE_SERVER
-            //     }); */
-            //     this.query.lastQueryTime = now;
-            // } else {
-            //     log.error('Unsupported query type:', this.query.type);
-            // }
-
             this.query.type = null;
         }
     };
-
-    // Get the current position of the active nozzle and stepper values.
-    // queryPosition = (() => {
-    //     let lastQueryTime = 0;
-
-    //     return _.throttle(() => {
-    //         // Check the ready flag
-    //         if (!(this.ready)) {
-    //             return;
-    //         }
-
-    //         const now = new Date().getTime();
-
-    //         if (!this.query.type) {
-    //             this.query.type = QUERY_TYPE_POSITION;
-    //             lastQueryTime = now;
-    //         } else if (lastQueryTime > 0) {
-    //             const timespan = Math.abs(now - lastQueryTime);
-    //             const toleranceTime = 5000; // 5 seconds
-
-    //             if (timespan >= toleranceTime) {
-    //                 log.silly(`Reschedule current position query: now=${now}ms, timespan=${timespan}ms`);
-    //                 this.query.type = QUERY_TYPE_POSITION;
-    //                 lastQueryTime = now;
-    //             }
-    //         }
-    //     }, 500);
-    // })();
-
-    // Request a temperature report to be sent to the host at some point in the future.
-    // queryTemperature = (() => {
-    //     let lastQueryTime = 0;
-
-    //     return _.throttle(() => {
-    //         // Check the ready flag
-    //         if (!(this.ready)) {
-    //             return;
-    //         }
-
-    //         const now = new Date().getTime();
-
-    //         if (!this.query.type) {
-    //             this.query.type = QUERY_TYPE_TEMPERATURE;
-    //             lastQueryTime = now;
-    //         } else if (lastQueryTime > 0) {
-    //             const timespan = Math.abs(now - lastQueryTime);
-    //             const toleranceTime = 10000; // 10 seconds
-
-    //             if (timespan >= toleranceTime) {
-    //                 log.silly(`Reschedule temperture report query: now=${now}ms, timespan=${timespan}ms`);
-    //                 this.query.type = QUERY_TYPE_TEMPERATURE;
-    //                 lastQueryTime = now;
-    //             }
-    //         }
-    //     }, 1000);
-    // })();
 
     constructor(engine, options) {
         if (!engine) {
@@ -242,6 +170,7 @@ class CirqoidController {
                     ...this.runner.state
                 };
 
+                // this part intercepts GCODES and interpret them to deal with unsupported GCODES in the firwmare
                 interpret(line, (cmd, params) => {
                     if (_.includes(['G0', 'G1'], cmd)) {
                         nextState.parserstate.modal.motion = cmd;
@@ -269,8 +198,6 @@ class CirqoidController {
                             for (let axis of ['x', 'y', 'z']) {
                                 const maxpos = '' + (Number(this.runner.state.status.maxpos[axis]) - Number(this.runner.state.status.wco[axis]));
                                 const minpos = '' + (Number(this.runner.state.status.minpos[axis]) - Number(this.runner.state.status.wco[axis]));
-                                log.debug(maxpos);
-                                log.debug(minpos);
                                 if (params[axis.toUpperCase()] !== undefined) {
                                     if (this.runner.state.parserstate.modal.distance === 'G91') {
                                         let absolutePos = Math.min((Number(params[axis.toUpperCase()]) + Number(this.runner.state.status.wpos[axis])), maxpos);
@@ -282,33 +209,6 @@ class CirqoidController {
                                     nextState.status.mpos[axis] = '' + (Number(nextState.status.wpos[axis]) + Number(nextState.status.wco[axis]));
                                 }
                             }
-                            // if (params.X !== undefined) {
-                            //     if (this.runner.state.parserstate.modal.distance === 'G91') {
-                            //         const absolutePos = (Number(params.X) + Number(this.runner.state.status.wpos.x));
-                            //         data = data.replace('X' + params.X, 'X' + absolutePos);
-                            //         params.X = absolutePos;
-                            //     }
-                            //     nextState.status.wpos.x = params.X;
-                            //     nextState.status.mpos.x = '' + (Number(nextState.status.wpos.x) + Number(nextState.status.wco.x));
-                            // }
-                            // if (params.Y !== undefined) {
-                            //     if (this.runner.state.parserstate.modal.distance === 'G91') {
-                            //         const absolutePos = (Number(params.Y) + Number(this.runner.state.status.wpos.y));
-                            //         data = data.replace('Y' + params.Y, 'Y' + absolutePos);
-                            //         params.Y = absolutePos;
-                            //     }
-                            //     nextState.status.wpos.y = params.Y;
-                            //     nextState.status.mpos.y = '' + (Number(nextState.status.wpos.y) + Number(nextState.status.wco.y));
-                            // }
-                            // if (params.Z !== undefined) {
-                            //     if (this.runner.state.parserstate.modal.distance === 'G91') {
-                            //         const absolutePos = (Number(params.Z) + Number(this.runner.state.status.mpos.z));
-                            //         data = data.replace('Z' + params.Z, 'Z' + absolutePos);
-                            //         params.Z = absolutePos;
-                            //     }
-                            //     nextState.status.wpos.z = params.Z;
-                            //     nextState.status.mpos.z = '' + (Number(nextState.status.wpos.z) + Number(nextState.status.wco.z));
-                            // }
                         }
                         log.debug(nextState.status.mpos);
                     }
