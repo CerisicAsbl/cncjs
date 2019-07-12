@@ -266,33 +266,49 @@ class CirqoidController {
                                 }
                             }
                         } else if (nextState.parserstate.modal.wcs === 'G54') {
-                            if (params.X !== undefined) {
-                                if (this.runner.state.parserstate.modal.distance === 'G91') {
-                                    const absolutePos = (Number(params.X) + Number(this.runner.state.status.wpos.x));
-                                    data = data.replace('X' + params.X, 'X' + absolutePos);
-                                    params.X = absolutePos;
+                            for (let axis of ['x', 'y', 'z']) {
+                                const maxpos = '' + (Number(this.runner.state.status.maxpos[axis]) - Number(this.runner.state.status.wco[axis]));
+                                const minpos = '' + (Number(this.runner.state.status.minpos[axis]) - Number(this.runner.state.status.wco[axis]));
+                                log.debug(maxpos);
+                                log.debug(minpos);
+                                if (params[axis.toUpperCase()] !== undefined) {
+                                    if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                        let absolutePos = Math.min((Number(params[axis.toUpperCase()]) + Number(this.runner.state.status.wpos[axis])), maxpos);
+                                        absolutePos = Math.max(absolutePos, minpos);
+                                        data = data.replace(axis.toUpperCase() + params[axis.toUpperCase()], axis.toUpperCase() + absolutePos);
+                                        params[axis.toUpperCase()] = absolutePos;
+                                    }
+                                    nextState.status.wpos[axis] = params[axis.toUpperCase()];
+                                    nextState.status.mpos[axis] = '' + (Number(nextState.status.wpos[axis]) + Number(nextState.status.wco[axis]));
                                 }
-                                nextState.status.wpos.x = params.X;
-                                nextState.status.mpos.x = '' + (Number(nextState.status.wpos.x) + Number(nextState.status.wco.x));
                             }
-                            if (params.Y !== undefined) {
-                                if (this.runner.state.parserstate.modal.distance === 'G91') {
-                                    const absolutePos = (Number(params.Y) + Number(this.runner.state.status.wpos.y));
-                                    data = data.replace('Y' + params.Y, 'Y' + absolutePos);
-                                    params.Y = absolutePos;
-                                }
-                                nextState.status.wpos.y = params.Y;
-                                nextState.status.mpos.y = '' + (Number(nextState.status.wpos.y) + Number(nextState.status.wco.y));
-                            }
-                            if (params.Z !== undefined) {
-                                if (this.runner.state.parserstate.modal.distance === 'G91') {
-                                    const absolutePos = (Number(params.Z) + Number(this.runner.state.status.mpos.z));
-                                    data = data.replace('Z' + params.Z, 'Z' + absolutePos);
-                                    params.Z = absolutePos;
-                                }
-                                nextState.status.wpos.z = params.Z;
-                                nextState.status.mpos.z = '' + (Number(nextState.status.wpos.z) + Number(nextState.status.wco.z));
-                            }
+                            // if (params.X !== undefined) {
+                            //     if (this.runner.state.parserstate.modal.distance === 'G91') {
+                            //         const absolutePos = (Number(params.X) + Number(this.runner.state.status.wpos.x));
+                            //         data = data.replace('X' + params.X, 'X' + absolutePos);
+                            //         params.X = absolutePos;
+                            //     }
+                            //     nextState.status.wpos.x = params.X;
+                            //     nextState.status.mpos.x = '' + (Number(nextState.status.wpos.x) + Number(nextState.status.wco.x));
+                            // }
+                            // if (params.Y !== undefined) {
+                            //     if (this.runner.state.parserstate.modal.distance === 'G91') {
+                            //         const absolutePos = (Number(params.Y) + Number(this.runner.state.status.wpos.y));
+                            //         data = data.replace('Y' + params.Y, 'Y' + absolutePos);
+                            //         params.Y = absolutePos;
+                            //     }
+                            //     nextState.status.wpos.y = params.Y;
+                            //     nextState.status.mpos.y = '' + (Number(nextState.status.wpos.y) + Number(nextState.status.wco.y));
+                            // }
+                            // if (params.Z !== undefined) {
+                            //     if (this.runner.state.parserstate.modal.distance === 'G91') {
+                            //         const absolutePos = (Number(params.Z) + Number(this.runner.state.status.mpos.z));
+                            //         data = data.replace('Z' + params.Z, 'Z' + absolutePos);
+                            //         params.Z = absolutePos;
+                            //     }
+                            //     nextState.status.wpos.z = params.Z;
+                            //     nextState.status.mpos.z = '' + (Number(nextState.status.wpos.z) + Number(nextState.status.wco.z));
+                            // }
                         }
                         log.debug(nextState.status.mpos);
                     }
