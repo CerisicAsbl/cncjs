@@ -210,7 +210,6 @@ class CirqoidController {
                                 }
                             }
                         }
-                        log.debug(nextState.status.mpos);
                     }
 
                     // pausing
@@ -293,7 +292,7 @@ class CirqoidController {
                 if (!_.isEqual(this.runner.state, nextState)) {
                     this.runner.state = nextState; // enforce change
                 }
-                log.debug(data);
+                log.debug('data:' + data);
                 return data;
             }
         });
@@ -361,6 +360,7 @@ class CirqoidController {
             this.connection.write(line + '\n', {
                 source: WRITE_SOURCE_FEEDER
             });
+            this.feeder.hold();
             log.silly(`> ${line}`);
         });
         this.feeder.on('hold', noop);
@@ -520,6 +520,7 @@ class CirqoidController {
             }
 
             // Feeder
+            this.feeder.unhold();
             if (this.feeder.next()) {
                 return;
             }
