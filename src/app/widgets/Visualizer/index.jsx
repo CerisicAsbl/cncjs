@@ -43,6 +43,9 @@ import {
     // TinyG
     TINYG,
     TINYG_MACHINE_STATE_RUN,
+    // Cirqoid
+    CIRQOID,
+    CIRQOID_ACTIVE_STATE_RUN,
     // Workflow
     WORKFLOW_STATE_RUNNING,
     WORKFLOW_STATE_PAUSED,
@@ -974,7 +977,7 @@ class VisualizerWidget extends PureComponent {
         if (!objects.cuttingTool.visible) {
             return false;
         }
-        if (!includes([GRBL, MARLIN, SMOOTHIE, TINYG], controllerType)) {
+        if (!includes([GRBL, MARLIN, SMOOTHIE, TINYG, CIRQOID], controllerType)) {
             return false;
         }
         if (controllerType === GRBL) {
@@ -997,6 +1000,12 @@ class VisualizerWidget extends PureComponent {
             const machineState = get(controllerState, 'sr.machineState');
             if (machineState !== TINYG_MACHINE_STATE_RUN) {
                 return false;
+            }
+        }
+        if (controllerType === CIRQOID) {
+            const activeState = get(controllerState, 'status.activeState');
+            if (activeState !== CIRQOID_ACTIVE_STATE_RUN) {
+                //return false;
             }
         }
 

@@ -225,6 +225,7 @@ class CirqoidController {
                         nextState.status.mpos.x = '0.000';
                         nextState.status.mpos.y = '0.000';
                         nextState.status.mpos.z = '0.000';
+                        log.debug("home!");
                     }
 
                     // wcs
