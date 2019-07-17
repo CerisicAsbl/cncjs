@@ -225,7 +225,6 @@ class CirqoidController {
                         nextState.status.mpos.x = '0.000';
                         nextState.status.mpos.y = '0.000';
                         nextState.status.mpos.z = '0.000';
-                        log.debug("home!");
                     }
 
                     // wcs
@@ -355,17 +354,35 @@ class CirqoidController {
                 return;
             }
 
-            this.emit('serialport:write', line + '\n', {
-                ...context,
-                source: WRITE_SOURCE_FEEDER
-            });
-
-            this.connection.write(line + '\n', {
-                source: WRITE_SOURCE_FEEDER
-            });
-            //this.feeder.hold();
-            this.runner.state.status.activeState = CIRQOID_ACTIVE_STATE_BUSY;
-            log.silly(`> ${line}`);
+            if (line.split('G').length - 1 > 1) {
+                // log.debug('chained command: ' + line);
+                const cmds = line.split('G');
+                for (var i = 1; i < cmds.length; i++) {
+                    const line2 = 'G' + cmds[i];
+                    // log.debug(line2);
+                    this.emit('serialport:write', line2 + '\n', {
+                        ...context,
+                        source: WRITE_SOURCE_FEEDER
+                    });
+                    this.connection.write(line2 + '\n', {
+                        source: WRITE_SOURCE_FEEDER
+                    });
+                    //this.feeder.hold();
+                    this.runner.state.status.activeState = CIRQOID_ACTIVE_STATE_BUSY;
+                    log.silly(`> ${line}`);
+                }
+            } else {
+                this.emit('serialport:write', line + '\n', {
+                    ...context,
+                    source: WRITE_SOURCE_FEEDER
+                });
+                this.connection.write(line + '\n', {
+                    source: WRITE_SOURCE_FEEDER
+                });
+                //this.feeder.hold();
+                this.runner.state.status.activeState = CIRQOID_ACTIVE_STATE_BUSY;
+                log.silly(`> ${line}`);
+            }
         });
         this.feeder.on('hold', noop);
         this.feeder.on('unhold', noop);
@@ -791,10 +808,19 @@ class CirqoidController {
 
             log.debug(`Connected to serial port "${port}"`);
 
-            // M115: Get firmware version and capabilities
-            // The response to this will take us to the ready state
+            // $$$info: get firmware info
             this.connection.write('$$$info\n', {
                 source: WRITE_SOURCE_SERVER
+            });
+
+            // reset WCO
+            this.connection.write('G92 X0 Y0 Z0\n', {
+                source: WRITE_SOURCE_FEEDER
+            });
+
+            // put machine in WCS
+            this.connection.write('G54\n', {
+                source: WRITE_SOURCE_FEEDER
             });
 
             this.workflow.stop();
@@ -1058,6 +1084,7 @@ class CirqoidController {
                 // Unsupported
             },
             'gcode': () => {
+                log.debug('gcode command: ' + args);
                 const [commands, context] = args;
                 const data = ensureArray(commands)
                     .join('\n')
