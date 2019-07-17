@@ -110,3 +110,7 @@ export const TINYG_MACHINE_STATE_JOG = 10; // Machine is in a jogging cycle
 export const TINYG_MACHINE_STATE_INTERLOCK = 11; // Machine is in safety interlock hold
 export const TINYG_MACHINE_STATE_SHUTDOWN = 12; // Machine is in shutdown state. Will not process commands
 export const TINYG_MACHINE_STATE_PANIC = 13; // Machine is in panic state. Needs to be physically reset
+
+// Cirqoid Active State
+export const CIRQOID_ACTIVE_STATE_IDLE = 'Idle';
+export const CIRQOID_ACTIVE_STATE_RUN = 'Run';
