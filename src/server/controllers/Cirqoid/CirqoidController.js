@@ -208,7 +208,7 @@ class CirqoidController {
                                         params[axis.toUpperCase()] = absolutePos;
                                     }
                                     nextState.status.wpos[axis] = '' + params[axis.toUpperCase()];
-                                    nextState.status.mpos[axis] = '' + (Number(nextState.status.wpos[axis]) + Number(nextState.status.wco[axis]));
+                                    nextState.status.mpos[axis] = '' + (Number(nextState.status.wpos[axis]) + Number(this.runner.state.status.wco[axis]));
                                 }
                             }
                         }
@@ -222,9 +222,10 @@ class CirqoidController {
 
                     // homing
                     if (_.includes(['G28'], cmd)) {
-                        nextState.status.mpos.x = '0.000';
-                        nextState.status.mpos.y = '0.000';
-                        nextState.status.mpos.z = '0.000';
+                        for (let axis of ['x', 'y', 'z']) {
+                            nextState.status.mpos[axis] = '0.000';
+                            nextState.status.wpos[axis] = '' + (0 - Number(this.runner.state.status.wco[axis]));
+                        }
                     }
 
                     // wcs
