@@ -44,6 +44,8 @@ import {
     TINYG_MACHINE_STATE_RUN,
     // Cirqoid
     CIRQOID,
+    CIRQOID_ACTIVE_STATE_IDLE,
+    CIRQOID_ACTIVE_STATE_RUN,
     // Workflow
     WORKFLOW_STATE_RUNNING
 } from '../../constants';
@@ -813,7 +815,14 @@ class AxesWidget extends PureComponent {
             // Ignore
         }
         if (controllerType === CIRQOID) {
-            // Ignore
+            const activeState = get(controllerState, 'status.activeState');
+            const states = [
+                CIRQOID_ACTIVE_STATE_IDLE,
+                CIRQOID_ACTIVE_STATE_RUN
+            ];
+            if (!includes(states, activeState)) {
+                // return false;
+            }
         }
         if (controllerType === SMOOTHIE) {
             const activeState = get(controllerState, 'status.activeState');
