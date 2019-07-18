@@ -174,10 +174,10 @@ class CirqoidController {
 
                 // this part intercepts GCODES and interpret them to deal with unsupported GCODES in the firwmare
                 interpret(line, (cmd, params) => {
-                    if (_.includes(['G0', 'G1'], cmd)) {
+                    if (_.includes(['G0', 'G00', 'G1', 'G01'], cmd)) {
                         nextState.parserstate.modal.motion = cmd;
                         if (params.F !== undefined) {
-                            if (cmd === 'G0') {
+                            if (cmd === 'G0' || cmd === 'G00') {
                                 nextState.parserstate.rapidFeedrate = params.F;
                             } else {
                                 nextState.parserstate.feedrate = params.F;
@@ -216,7 +216,7 @@ class CirqoidController {
                     }
 
                     // pausing
-                    if (_.includes(['G4'], cmd)) {
+                    if (_.includes(['G4', 'G04'], cmd)) {
                         // mistake in the cirqoid firmware: P parameter is considered in seconds and not in ms
                         data = data.replace('P' + params.P, 'P' + (Number(params.P) / 1000.0));
                     }
@@ -281,15 +281,25 @@ class CirqoidController {
                     }
 
                     // spindle or head
-                    if (_.includes(['M3', 'M4', 'M5'], cmd)) {
+                    if (_.includes(['M3', 'M03', 'M4', 'M04', 'M5', 'M05'], cmd)) {
                         // M3: Spindle (cw), M4: Spindle (ccw), M5: Spindle off
                         nextState.parserstate.modal.spindle = cmd;
 
-                        if (cmd === 'M3' || cmd === 'M4') {
+                        if (cmd === 'M3' || cmd === 'M03' || cmd === 'M4' || cmd === 'M04') {
                             if (params.S !== undefined) {
                                 nextState.parserstate.spindle = params.S;
                             }
                         }
+                    }
+
+                    // All discarded gcodes are handled here:
+                    // M02
+                    if (_.includes(['M2', 'M02'], cmd)) {
+                        const filteredGcodes = ['M2', 'M02'];
+                        for (let filteredGcode of filteredGcodes) {
+                            data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
+                        }
+                        this.runner.emit('ok', '');
                     }
                 });
 
@@ -1060,7 +1070,6 @@ class CirqoidController {
             'gcode': () => {
                 const [commands, context] = args;
                 if (commands.split('G').length - 1 > 1) {
-                    // log.debug('chained command: ' + line);
                     const cmds = commands.split('G');
                     for (let i = 1; i < cmds.length; i++) {
                         const line2 = 'G' + cmds[i];
@@ -1083,7 +1092,7 @@ class CirqoidController {
                         const notBusy = !(this.history.writeSource);
                         const senderIdle = (this.sender.state.sent === this.sender.state.received);
                         const feederIdle = !(this.feeder.isPending());
-
+                        log.debug('notBusy: ' + notBusy + 'senderIdle: ' + senderIdle + 'feederIdle: ' + feederIdle);
                         if (notBusy && senderIdle && feederIdle) {
                             this.feeder.next();
                         }
