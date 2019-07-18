@@ -356,35 +356,6 @@ class CirqoidController {
                 return;
             }
 
-            // if (line.split('G').length - 1 > 1) {
-            //     // log.debug('chained command: ' + line);
-            //     const cmds = line.split('G');
-            //     for (let i = 1; i < cmds.length; i++) {
-            //         const line2 = 'G' + cmds[i];
-            //         // log.debug(line2);
-            //         this.emit('serialport:write', line2 + '\n', {
-            //             ...context,
-            //             source: WRITE_SOURCE_FEEDER
-            //         });
-            //         this.connection.write(line2 + '\n', {
-            //             source: WRITE_SOURCE_FEEDER
-            //         });
-            //         //this.feeder.hold();
-            //         this.runner.state.status.activeState = CIRQOID_ACTIVE_STATE_BUSY;
-            //         log.silly(`> ${line}`);
-            //     }
-            // } else {
-            //     this.emit('serialport:write', line + '\n', {
-            //         ...context,
-            //         source: WRITE_SOURCE_FEEDER
-            //     });
-            //     this.connection.write(line + '\n', {
-            //         source: WRITE_SOURCE_FEEDER
-            //     });
-            //     //this.feeder.hold();
-            //     this.runner.state.status.activeState = CIRQOID_ACTIVE_STATE_BUSY;
-            //     log.silly(`> ${line}`);
-            // }
             this.emit('serialport:write', line + '\n', {
                 ...context,
                 source: WRITE_SOURCE_FEEDER
@@ -820,24 +791,11 @@ class CirqoidController {
 
             log.debug(`Connected to serial port "${port}"`);
 
-            // $$$info: get firmware info
-            // this.connection.write('$$$info\n', {
-            //     source: WRITE_SOURCE_SERVER
-            // });
             this.command('gcode', '$$$info');
 
-            // reset WCO
-            // this.connection.write('G92 X0 Y0 Z0\n', {
-            //     source: WRITE_SOURCE_SERVER
-            // });
             this.command('gcode', 'G92 X0 Y0 Z0');
 
-            // put machine in WCS
-            // this.connection.write('G54\n', {
-            //     source: WRITE_SOURCE_FEEDER
-            // });
             this.command('gcode', 'G54');
-
 
             this.workflow.stop();
 
@@ -1131,31 +1089,6 @@ class CirqoidController {
                         }
                     }
                 }
-                // log.debug('gcode command: ' + args);
-                // //this.command('gcode', '$$$info');
-                // log.debug('gcode commands: ' + commands + ' context: ' + context);
-                // const [commands, context] = args;
-                // const data = ensureArray(commands)
-                //     .join('\n')
-                //     .split(/\r?\n/)
-                //     .filter(line => {
-                //         if (typeof line !== 'string') {
-                //             return false;
-                //         }
-                //         return line.trim().length > 0;
-                //     });
-
-                // this.feeder.feed(data, context);
-
-                // { // The following criteria must be met to trigger the feeder
-                //     const notBusy = !(this.history.writeSource);
-                //     const senderIdle = (this.sender.state.sent === this.sender.state.received);
-                //     const feederIdle = !(this.feeder.isPending());
-
-                //     if (notBusy && senderIdle && feederIdle) {
-                //         this.feeder.next();
-                //     }
-                // }
             },
             'macro:run': () => {
                 let [id, context = {}, callback = noop] = args;
