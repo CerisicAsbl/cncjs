@@ -113,4 +113,4 @@ export const TINYG_MACHINE_STATE_PANIC = 13; // Machine is in panic state. Needs
 
 // Cirqoid Active State
 export const CIRQOID_ACTIVE_STATE_IDLE = 'Idle';
-export const CIRQOID_ACTIVE_STATE_RUN = 'Run';
+export const CIRQOID_ACTIVE_STATE_BUSY = 'Busy';

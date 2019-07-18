@@ -45,7 +45,7 @@ import {
     // Cirqoid
     CIRQOID,
     CIRQOID_ACTIVE_STATE_IDLE,
-    CIRQOID_ACTIVE_STATE_RUN,
+    CIRQOID_ACTIVE_STATE_BUSY,
     // Workflow
     WORKFLOW_STATE_RUNNING
 } from '../../constants';
@@ -818,10 +818,10 @@ class AxesWidget extends PureComponent {
             const activeState = get(controllerState, 'status.activeState');
             const states = [
                 CIRQOID_ACTIVE_STATE_IDLE,
-                CIRQOID_ACTIVE_STATE_RUN
+                CIRQOID_ACTIVE_STATE_BUSY
             ];
             if (!includes(states, activeState)) {
-                // return false;
+                return false;
             }
         }
         if (controllerType === SMOOTHIE) {
