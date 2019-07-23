@@ -42,6 +42,10 @@ import {
     TINYG_MACHINE_STATE_STOP,
     TINYG_MACHINE_STATE_END,
     TINYG_MACHINE_STATE_RUN,
+    // Cirqoid
+    CIRQOID,
+    CIRQOID_ACTIVE_STATE_IDLE,
+    CIRQOID_ACTIVE_STATE_BUSY,
     // Workflow
     WORKFLOW_STATE_RUNNING
 } from '../../constants';
@@ -160,9 +164,14 @@ class AxesWidget extends PureComponent {
                 return get(controllerState, 'sr.modal.wcs') || defaultWCS;
             }
 
+            if (controllerType === CIRQOID) {
+                return get(controllerState, 'parserstate.modal.wcs') || defaultWCS;
+            }
+
             return defaultWCS;
         },
         setWorkOffsets: (axis, value) => {
+            const controllerType = this.state.controller.type;
             const wcs = this.actions.getWorkCoordinateSystem();
             const p = {
                 'G54': 1,
@@ -174,9 +183,15 @@ class AxesWidget extends PureComponent {
             }[wcs] || 0;
             axis = (axis || '').toUpperCase();
             value = Number(value) || 0;
-
-            const gcode = `G10 L20 P${p} ${axis}${value}`;
-            controller.command('gcode', gcode);
+            //const gcode = '';
+            if (controllerType === CIRQOID) {
+                const gcode = `G92 ${axis}${value}`;
+                controller.command('gcode', gcode);
+                //controller.command('gcode', 'G54');
+            } else {
+                const gcode = `G10 L20 P${p} ${axis}${value}`;
+                controller.command('gcode', gcode);
+            }
         },
         jog: (params = {}) => {
             const s = map(params, (value, letter) => ('' + letter.toUpperCase() + value)).join(' ');
@@ -523,6 +538,40 @@ class AxesWidget extends PureComponent {
                 }));
             }
 
+            // CIRQOID
+            if (type === CIRQOID) {
+                const { status, parserstate } = { ...controllerState };
+                const { mpos, wpos } = status;
+                const { modal = {} } = { ...parserstate };
+                const units = {
+                    'G20': IMPERIAL_UNITS,
+                    'G21': METRIC_UNITS
+                }[modal.units] || this.state.units;
+
+                this.setState(state => ({
+                    units: units,
+                    controller: {
+                        ...state.controller,
+                        type: type,
+                        state: controllerState
+                    },
+                    // Machine position are reported in mm ($13=0) or inches ($13=1)
+                    machinePosition: mapValues({
+                        ...state.machinePosition,
+                        ...mpos
+                    }, (val) => {
+                        return (units === IMPERIAL_UNITS) ? in2mm(val) : val;
+                    }),
+                    // Work position are reported in mm ($13=0) or inches ($13=1)
+                    workPosition: mapValues({
+                        ...state.workPosition,
+                        ...wpos
+                    }, val => {
+                        return (units === IMPERIAL_UNITS) ? in2mm(val) : val;
+                    })
+                }));
+            }
+
             // Smoothie
             if (type === SMOOTHIE) {
                 const { status, parserstate } = { ...controllerState };
@@ -749,7 +798,7 @@ class AxesWidget extends PureComponent {
         if (workflow.state === WORKFLOW_STATE_RUNNING) {
             return false;
         }
-        if (!includes([GRBL, MARLIN, SMOOTHIE, TINYG], controllerType)) {
+        if (!includes([GRBL, MARLIN, SMOOTHIE, TINYG, CIRQOID], controllerType)) {
             return false;
         }
         if (controllerType === GRBL) {
@@ -764,6 +813,16 @@ class AxesWidget extends PureComponent {
         }
         if (controllerType === MARLIN) {
             // Ignore
+        }
+        if (controllerType === CIRQOID) {
+            const activeState = get(controllerState, 'status.activeState');
+            const states = [
+                CIRQOID_ACTIVE_STATE_IDLE,
+                CIRQOID_ACTIVE_STATE_BUSY
+            ];
+            if (!includes(states, activeState)) {
+                return false;
+            }
         }
         if (controllerType === SMOOTHIE) {
             const activeState = get(controllerState, 'status.activeState');

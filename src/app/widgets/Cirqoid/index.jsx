@@ -1,4 +1,3 @@
-import isNumber from 'lodash/isNumber';
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React, { PureComponent } from 'react';
@@ -6,7 +5,6 @@ import Space from 'app/components/Space';
 import Widget from 'app/components/Widget';
 import i18n from 'app/lib/i18n';
 import controller from 'app/lib/controller';
-import ensurePositiveNumber from 'app/lib/ensure-positive-number';
 import WidgetConfig from '../WidgetConfig';
 import Cirqoid from './Cirqoid';
 import Controller from './Controller';
@@ -79,14 +77,14 @@ class CirqoidWidget extends PureComponent {
                 }
             });
         },
-        toggleHeaterControl: () => {
-            const expanded = this.state.panel.heaterControl.expanded;
+        toggleQueueReports: () => {
+            const expanded = this.state.panel.queueReports.expanded;
 
             this.setState({
                 panel: {
                     ...this.state.panel,
-                    heaterControl: {
-                        ...this.state.panel.heaterControl,
+                    queueReports: {
+                        ...this.state.panel.queueReports,
                         expanded: !expanded
                     }
                 }
@@ -117,42 +115,6 @@ class CirqoidWidget extends PureComponent {
                     }
                 }
             });
-        },
-        changeExtruderTemperature: (event) => {
-            const value = event.target.value;
-            if (typeof value === 'string' && value.trim() === '') {
-                this.setState(state => ({
-                    heater: {
-                        ...state.heater,
-                        extruder: value
-                    }
-                }));
-            } else {
-                this.setState(state => ({
-                    heater: {
-                        ...state.heater,
-                        extruder: ensurePositiveNumber(value)
-                    }
-                }));
-            }
-        },
-        changeHeatedBedTemperature: (event) => {
-            const value = event.target.value;
-            if (typeof value === 'string' && value.trim() === '') {
-                this.setState(state => ({
-                    heater: {
-                        ...state.heater,
-                        heatedBed: value
-                    }
-                }));
-            } else {
-                this.setState(state => ({
-                    heater: {
-                        ...state.heater,
-                        heatedBed: ensurePositiveNumber(value)
-                    }
-                }));
-            }
         }
     };
 
@@ -203,20 +165,13 @@ class CirqoidWidget extends PureComponent {
     componentDidUpdate(prevProps, prevState) {
         const {
             minimized,
-            panel,
-            heater
+            panel
         } = this.state;
 
         this.config.set('minimized', minimized);
-        this.config.set('panel.heaterControl.expanded', panel.heaterControl.expanded);
+        this.config.set('panel.queueReports.expanded', panel.queueReports.expanded);
         this.config.set('panel.statusReports.expanded', panel.statusReports.expanded);
         this.config.set('panel.modalGroups.expanded', panel.modalGroups.expanded);
-        if (isNumber(heater.extruder)) {
-            this.config.set('heater.extruder', heater.extruder);
-        }
-        if (isNumber(heater.heatedBed)) {
-            this.config.set('heater.heatedBed', heater.heatedBed);
-        }
     }
 
     getInitialState() {
@@ -236,8 +191,8 @@ class CirqoidWidget extends PureComponent {
                 params: {}
             },
             panel: {
-                heaterControl: {
-                    expanded: this.config.get('panel.heaterControl.expanded')
+                queueReports: {
+                    expanded: this.config.get('panel.queueReports.expanded')
                 },
                 statusReports: {
                     expanded: this.config.get('panel.statusReports.expanded')
@@ -245,10 +200,6 @@ class CirqoidWidget extends PureComponent {
                 modalGroups: {
                     expanded: this.config.get('panel.modalGroups.expanded')
                 }
-            },
-            heater: {
-                extruder: this.config.get('heater.extruder', 0),
-                heatedBed: this.config.get('heater.heatedBed', 0)
             }
         };
     }
@@ -321,22 +272,71 @@ class CirqoidWidget extends PureComponent {
                                 toggle={<i className="fa fa-th-large" />}
                             >
                                 <Widget.DropdownMenuItem
-                                    onSelect={() => controller.writeln('M105')}
+                                    onSelect={() => controller.write('?')}
                                     disabled={!state.canClick}
                                 >
-                                    {i18n._('Get Extruder Temperature (M105)')}
+                                    {i18n._('Status Report (?)')}
                                 </Widget.DropdownMenuItem>
                                 <Widget.DropdownMenuItem
-                                    onSelect={() => controller.writeln('M114')}
+                                    onSelect={() => controller.writeln('$C')}
                                     disabled={!state.canClick}
                                 >
-                                    {i18n._('Get Current Position (M114)')}
+                                    {i18n._('Check G-code Mode ($C)')}
                                 </Widget.DropdownMenuItem>
                                 <Widget.DropdownMenuItem
-                                    onSelect={() => controller.writeln('M115')}
+                                    onSelect={() => controller.command('homing')}
                                     disabled={!state.canClick}
                                 >
-                                    {i18n._('Get Firmware Version and Capabilities (M115)')}
+                                    {i18n._('Homing ($H)')}
+                                </Widget.DropdownMenuItem>
+                                <Widget.DropdownMenuItem
+                                    onSelect={() => controller.command('unlock')}
+                                    disabled={!state.canClick}
+                                >
+                                    {i18n._('Kill Alarm Lock ($X)')}
+                                </Widget.DropdownMenuItem>
+                                <Widget.DropdownMenuItem
+                                    onSelect={() => controller.command('sleep')}
+                                    disabled={!state.canClick}
+                                >
+                                    {i18n._('Sleep ($SLP)')}
+                                </Widget.DropdownMenuItem>
+                                <Widget.DropdownMenuItem divider />
+                                <Widget.DropdownMenuItem
+                                    onSelect={() => controller.writeln('$')}
+                                    disabled={!state.canClick}
+                                >
+                                    {i18n._('Help ($)')}
+                                </Widget.DropdownMenuItem>
+                                <Widget.DropdownMenuItem
+                                    onSelect={() => controller.writeln('$$')}
+                                    disabled={!state.canClick}
+                                >
+                                    {i18n._('Settings ($$)')}
+                                </Widget.DropdownMenuItem>
+                                <Widget.DropdownMenuItem
+                                    onSelect={() => controller.writeln('$#')}
+                                    disabled={!state.canClick}
+                                >
+                                    {i18n._('View G-code Parameters ($#)')}
+                                </Widget.DropdownMenuItem>
+                                <Widget.DropdownMenuItem
+                                    onSelect={() => controller.writeln('$G')}
+                                    disabled={!state.canClick}
+                                >
+                                    {i18n._('View G-code Parser State ($G)')}
+                                </Widget.DropdownMenuItem>
+                                <Widget.DropdownMenuItem
+                                    onSelect={() => controller.writeln('$I')}
+                                    disabled={!state.canClick}
+                                >
+                                    {i18n._('View Build Info ($I)')}
+                                </Widget.DropdownMenuItem>
+                                <Widget.DropdownMenuItem
+                                    onSelect={() => controller.writeln('$N')}
+                                    disabled={!state.canClick}
+                                >
+                                    {i18n._('View Startup Blocks ($N)')}
                                 </Widget.DropdownMenuItem>
                             </Widget.DropdownButton>
                         )}

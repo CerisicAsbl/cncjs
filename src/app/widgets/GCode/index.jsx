@@ -15,6 +15,7 @@ import {
     MARLIN,
     SMOOTHIE,
     TINYG,
+    CIRQOID,
     // Units
     IMPERIAL_UNITS,
     METRIC_UNITS
@@ -145,6 +146,20 @@ class GCodeWidget extends PureComponent {
             if (type === TINYG) {
                 const { sr } = { ...state };
                 const { modal = {} } = { ...sr };
+                const units = {
+                    'G20': IMPERIAL_UNITS,
+                    'G21': METRIC_UNITS
+                }[modal.units] || this.state.units;
+
+                if (this.state.units !== units) {
+                    this.setState({ units: units });
+                }
+            }
+
+            // Cirqoid
+            if (type === CIRQOID) {
+                const { parserstate } = { ...state };
+                const { modal = {} } = { ...parserstate };
                 const units = {
                     'G20': IMPERIAL_UNITS,
                     'G21': METRIC_UNITS

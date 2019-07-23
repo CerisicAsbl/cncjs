@@ -37,7 +37,7 @@ const parseMountPoint = (val, acc) => {
 const parseController = (val) => {
     val = val ? (val + '').toLowerCase() : '';
 
-    if (['grbl', 'marlin', 'smoothie', 'tinyg', 'g2core'].includes(val)) {
+    if (['grbl', 'marlin', 'smoothie', 'tinyg', 'g2core', 'Cirqoid'].includes(val)) {
         return val;
     } else {
         return '';

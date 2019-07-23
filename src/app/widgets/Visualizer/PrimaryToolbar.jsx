@@ -48,6 +48,10 @@ import {
     TINYG_MACHINE_STATE_INTERLOCK,
     TINYG_MACHINE_STATE_SHUTDOWN,
     TINYG_MACHINE_STATE_PANIC,
+    // Cirqoid
+    CIRQOID,
+    CIRQOID_ACTIVE_STATE_IDLE,
+    CIRQOID_ACTIVE_STATE_RUN,
     // Workflow
     WORKFLOW_STATE_IDLE
 } from 'app/constants';
@@ -187,6 +191,20 @@ class PrimaryToolbar extends PureComponent {
             }[machineState];
         }
 
+        if (controllerType === CIRQOID) {
+            const activeState = _.get(controllerState, 'status.activeState');
+
+            stateStyle = {
+                [CIRQOID_ACTIVE_STATE_IDLE]: 'controller-state-default',
+                [CIRQOID_ACTIVE_STATE_RUN]: 'controller-state-primary'
+            }[activeState];
+
+            stateText = {
+                [CIRQOID_ACTIVE_STATE_IDLE]: i18n.t('controller:Cirqoid.activeState.idle'),
+                [CIRQOID_ACTIVE_STATE_RUN]: i18n.t('controller:Cirqoid.activeState.run')
+            }[activeState];
+        }
+
         return (
             <div
                 className={classNames(
@@ -219,6 +237,10 @@ class PrimaryToolbar extends PureComponent {
 
         if (controllerType === TINYG) {
             return _.get(controllerState, 'sr.modal.wcs') || defaultWCS;
+        }
+
+        if (controllerType === CIRQOID) {
+            return _.get(controllerState, 'parserstate.modal.wcs') || defaultWCS;
         }
 
         return defaultWCS;

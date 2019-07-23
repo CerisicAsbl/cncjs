@@ -1,5 +1,5 @@
 import ensureArray from 'ensure-array';
-import * as parser from 'gcode-parser';
+//import * as parser from 'gcode-parser';
 import _ from 'lodash';
 import SerialConnection from '../../lib/SerialConnection';
 import EventTrigger from '../../lib/EventTrigger';
@@ -10,7 +10,7 @@ import Workflow, {
     WORKFLOW_STATE_PAUSED,
     WORKFLOW_STATE_RUNNING
 } from '../../lib/Workflow';
-import ensurePositiveNumber from '../../lib/ensure-positive-number';
+// import ensurePositiveNumber from '../../lib/ensure-positive-number';
 import evaluateAssignmentExpression from '../../lib/evaluate-assignment-expression';
 import logger from '../../lib/logger';
 import translateExpression from '../../lib/translate-expression';
@@ -21,7 +21,7 @@ import store from '../../store';
 import {
     GLOBAL_OBJECTS as globalObjects,
     WRITE_SOURCE_CLIENT,
-    WRITE_SOURCE_SERVER,
+    //WRITE_SOURCE_SERVER,
     WRITE_SOURCE_FEEDER,
     WRITE_SOURCE_SENDER
 } from '../constants';
@@ -29,8 +29,8 @@ import CirqoidRunner from './CirqoidRunner';
 import interpret from './interpret';
 import {
     CIRQOID,
-    QUERY_TYPE_POSITION,
-    QUERY_TYPE_TEMPERATURE
+    CIRQOID_ACTIVE_STATE_IDLE,
+    CIRQOID_ACTIVE_STATE_BUSY
 } from './constants';
 
 // % commands
@@ -133,82 +133,9 @@ class CirqoidController {
             if (!this.query.type) {
                 return;
             }
-
-            const now = new Date().getTime();
-            
-            if (this.query.type === QUERY_TYPE_POSITION) {
-                this.connection.write('M114\n', {
-                    source: WRITE_SOURCE_SERVER
-                });
-                this.query.lastQueryTime = now;
-            } else if (this.query.type === QUERY_TYPE_TEMPERATURE) {
-                this.connection.write('M105\n', {
-                    source: WRITE_SOURCE_SERVER
-                });
-                this.query.lastQueryTime = now;
-            } else {
-                log.error('Unsupported query type:', this.query.type);
-            }
-
             this.query.type = null;
         }
     };
-
-    // Get the current position of the active nozzle and stepper values.
-    queryPosition = (() => {
-        let lastQueryTime = 0;
-
-        return _.throttle(() => {
-            // Check the ready flag
-            if (!(this.ready)) {
-                return;
-            }
-
-            const now = new Date().getTime();
-
-            if (!this.query.type) {
-                this.query.type = QUERY_TYPE_POSITION;
-                lastQueryTime = now;
-            } else if (lastQueryTime > 0) {
-                const timespan = Math.abs(now - lastQueryTime);
-                const toleranceTime = 5000; // 5 seconds
-
-                if (timespan >= toleranceTime) {
-                    log.silly(`Reschedule current position query: now=${now}ms, timespan=${timespan}ms`);
-                    this.query.type = QUERY_TYPE_POSITION;
-                    lastQueryTime = now;
-                }
-            }
-        }, 500);
-    })();
-
-    // Request a temperature report to be sent to the host at some point in the future.
-    queryTemperature = (() => {
-        let lastQueryTime = 0;
-
-        return _.throttle(() => {
-            // Check the ready flag
-            if (!(this.ready)) {
-                return;
-            }
-
-            const now = new Date().getTime();
-
-            if (!this.query.type) {
-                this.query.type = QUERY_TYPE_TEMPERATURE;
-                lastQueryTime = now;
-            } else if (lastQueryTime > 0) {
-                const timespan = Math.abs(now - lastQueryTime);
-                const toleranceTime = 10000; // 10 seconds
-
-                if (timespan >= toleranceTime) {
-                    log.silly(`Reschedule temperture report query: now=${now}ms, timespan=${timespan}ms`);
-                    this.query.type = QUERY_TYPE_TEMPERATURE;
-                    lastQueryTime = now;
-                }
-            }
-        }, 1000);
-    })();
 
     constructor(engine, options) {
         if (!engine) {
@@ -242,92 +169,152 @@ class CirqoidController {
                 }
 
                 const nextState = {
-                    ...this.runner.state,
-                    modal: {
-                        ...this.runner.state.modal
-                    }
+                    ...this.runner.state
                 };
 
+                // this part intercepts GCODES and interpret them to deal with unsupported GCODES in the firwmare
                 interpret(line, (cmd, params) => {
-                    // motion
-                    if (_.includes(['G0', 'G1', 'G2', 'G3', 'G38.2', 'G38.3', 'G38.4', 'G38.5', 'G80'], cmd)) {
-                        nextState.modal.motion = cmd;
-
+                    if (_.includes(['G0', 'G00', 'G1', 'G01'], cmd)) {
+                        nextState.parserstate.modal.motion = cmd;
                         if (params.F !== undefined) {
-                            if (cmd === 'G0') {
-                                nextState.rapidFeedrate = params.F;
+                            if (cmd === 'G0' || cmd === 'G00') {
+                                nextState.parserstate.rapidFeedrate = params.F;
                             } else {
-                                nextState.feedrate = params.F;
+                                nextState.parserstate.feedrate = params.F;
+                            }
+                        }
+                        if (nextState.parserstate.modal.wcs === 'G53') {
+                            for (let axis of ['x', 'y', 'z']) {
+                                if (params[axis.toUpperCase()] !== undefined) {
+                                    if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                        let absolutePos = (Number(params[axis.toUpperCase()]) + Number(this.runner.state.status.mpos[axis]));
+                                        absolutePos = Math.min(absolutePos, this.runner.state.status.maxpos[axis]);
+                                        absolutePos = Math.max(absolutePos, this.runner.state.status.minpos[axis]);
+                                        data = data.replace(axis.toUpperCase() + params[axis.toUpperCase()], axis.toUpperCase() + absolutePos);
+                                        params[axis.toUpperCase()] = absolutePos;
+                                    }
+                                    nextState.status.mpos[axis] = '' + params[axis.toUpperCase()];
+                                    nextState.status.wpos[axis] = '' + (Number(nextState.status.mpos[axis]) - Number(nextState.status.wco[axis]));
+                                }
+                            }
+                        } else if (nextState.parserstate.modal.wcs === 'G54') {
+                            for (let axis of ['x', 'y', 'z']) {
+                                const maxpos = '' + (Number(this.runner.state.status.maxpos[axis]) - Number(this.runner.state.status.wco[axis]));
+                                const minpos = '' + (Number(this.runner.state.status.minpos[axis]) - Number(this.runner.state.status.wco[axis]));
+                                if (params[axis.toUpperCase()] !== undefined) {
+                                    if (this.runner.state.parserstate.modal.distance === 'G91') {
+                                        let absolutePos = Math.min((Number(params[axis.toUpperCase()]) + Number(this.runner.state.status.wpos[axis])), maxpos);
+                                        absolutePos = Math.max(absolutePos, minpos);
+                                        data = data.replace(axis.toUpperCase() + params[axis.toUpperCase()], axis.toUpperCase() + absolutePos);
+                                        params[axis.toUpperCase()] = absolutePos;
+                                    }
+                                    nextState.status.wpos[axis] = '' + params[axis.toUpperCase()];
+                                    nextState.status.mpos[axis] = '' + (Number(nextState.status.wpos[axis]) + Number(this.runner.state.status.wco[axis]));
+                                }
                             }
                         }
                     }
 
-                    // wcs
-                    if (_.includes(['G54', 'G55', 'G56', 'G57', 'G58', 'G59'], cmd)) {
-                        nextState.modal.wcs = cmd;
+                    // pausing
+                    if (_.includes(['G4', 'G04'], cmd)) {
+                        // mistake in the cirqoid firmware: P parameter is considered in seconds and not in ms
+                        data = data.replace('P' + params.P, 'P' + (Number(params.P) / 1000.0));
                     }
 
-                    // plane
-                    if (_.includes(['G17', 'G18', 'G19'], cmd)) {
-                        // G17: xy-plane, G18: xz-plane, G19: yz-plane
-                        nextState.modal.plane = cmd;
+                    // homing
+                    if (_.includes(['G28'], cmd)) {
+                        for (let axis of ['x', 'y', 'z']) {
+                            nextState.status.mpos[axis] = '0.000';
+                            nextState.status.wpos[axis] = '' + (0 - Number(this.runner.state.status.wco[axis]));
+                        }
+                    }
+
+                    // wcs
+                    if (_.includes(['G53', 'G54'], cmd)) {
+                        nextState.parserstate.modal.wcs = cmd;
                     }
 
                     // units
                     if (_.includes(['G20', 'G21'], cmd)) {
                         // G20: Inches, G21: Millimeters
-                        nextState.modal.units = cmd;
+                        nextState.parserstate.modal.units = cmd;
+                        const filteredGcodes = ['G20', 'G21'];
+                        for (let filteredGcode of filteredGcodes) {
+                            data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
+                        }
+                        this.runner.emit('ok', '');
                     }
 
                     // distance
                     if (_.includes(['G90', 'G91'], cmd)) {
                         // G90: Absolute, G91: Relative
-                        nextState.modal.distance = cmd;
+                        nextState.parserstate.modal.distance = cmd;
+                        const filteredGcodes = ['G90', 'G91'];
+                        for (let filteredGcode of filteredGcodes) {
+                            data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
+                        }
+                        this.runner.emit('ok', '');
+                    }
+
+                    // WCO
+                    if (_.includes(['G92'], cmd)) {
+                        if (params.X !== undefined) {
+                            nextState.status.wco.x = params.X;
+                            nextState.status.wpos.x = '' + (Number(nextState.status.mpos.x) - Number(nextState.status.wco.x));
+                        }
+                        if (params.Y !== undefined) {
+                            nextState.status.wco.y = params.Y;
+                            nextState.status.wpos.y = '' + (Number(nextState.status.mpos.y) - Number(nextState.status.wco.y));
+                        }
+                        if (params.Z !== undefined) {
+                            nextState.status.wco.z = params.Z;
+                            nextState.status.wpos.z = '' + (Number(nextState.status.mpos.z) - Number(nextState.status.wco.z));
+                        }
                     }
 
                     // feedrate
                     if (_.includes(['G93', 'G94'], cmd)) {
                         // G93: Inverse time mode, G94: Units per minute
-                        nextState.modal.feedrate = cmd;
-                    }
-
-                    // program
-                    if (_.includes(['M0', 'M1', 'M2', 'M30'], cmd)) {
-                        nextState.modal.program = cmd;
+                        nextState.parserstate.modal.feedrate = cmd;
+                        const filteredGcodes = ['G93', 'G94'];
+                        for (let filteredGcode of filteredGcodes) {
+                            data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
+                        }
+                        this.runner.emit('ok', '');
                     }
 
                     // spindle or head
-                    if (_.includes(['M3', 'M4', 'M5'], cmd)) {
+                    if (_.includes(['M3', 'M03', 'M4', 'M04', 'M5', 'M05'], cmd)) {
                         // M3: Spindle (cw), M4: Spindle (ccw), M5: Spindle off
-                        nextState.modal.spindle = cmd;
+                        nextState.parserstate.modal.spindle = cmd;
 
-                        if (cmd === 'M3' || cmd === 'M4') {
+                        if (cmd === 'M3' || cmd === 'M03' || cmd === 'M4' || cmd === 'M04') {
                             if (params.S !== undefined) {
-                                nextState.spindle = params.S;
+                                nextState.parserstate.spindle = params.S;
                             }
                         }
                     }
+                    // spindle or head
+                    if (_.includes(['M7', 'M07', 'M9', 'M09'], cmd)) {
+                        // M7: Vacuum on, M9: Vacuum off
+                        nextState.parserstate.modal.vacuum = cmd;
+                    }
 
-                    // coolant
-                    if (_.includes(['M7', 'M8', 'M9'], cmd)) {
-                        const coolant = nextState.modal.coolant;
-
-                        // M7: Mist coolant, M8: Flood coolant, M9: Coolant off, [M7,M8]: Both on
-                        if (cmd === 'M9' || coolant === 'M9') {
-                            nextState.modal.coolant = cmd;
-                        } else {
-                            nextState.modal.coolant = _.uniq(ensureArray(coolant).concat(cmd)).sort();
-                            if (nextState.modal.coolant.length === 1) {
-                                nextState.modal.coolant = nextState.modal.coolant[0];
-                            }
+                    // All discarded gcodes are handled here:
+                    // M02
+                    if (_.includes(['M0', 'M00', 'M1', 'M01', 'M2', 'M02'], cmd)) {
+                        const filteredGcodes = ['M0', 'M00', 'M1', 'M01', 'M2', 'M02'];
+                        for (let filteredGcode of filteredGcodes) {
+                            data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
                         }
+                        this.runner.emit('ok', '');
                     }
                 });
 
                 if (!_.isEqual(this.runner.state, nextState)) {
                     this.runner.state = nextState; // enforce change
                 }
-
+                log.debug('Sent data: ' + data.trim());
                 return data;
             }
         });
@@ -346,7 +333,6 @@ class CirqoidController {
         this.feeder = new Feeder({
             dataFilter: (line, context) => {
                 // Remove comments that start with a semicolon `;`
-                line = line.replace(/\s*;.*/g, '').trim();
                 context = this.populateContext(context);
 
                 if (line[0] === '%') {
@@ -367,37 +353,6 @@ class CirqoidController {
                 // line="G0 X[posx - 8] Y[ymax]"
                 // > "G0 X2 Y50"
                 line = translateExpression(line, context);
-                const data = parser.parseLine(line, { flatten: true });
-                const words = ensureArray(data.words);
-
-                // M109 Set extruder temperature and wait for the target temperature to be reached
-                if (_.includes(words, 'M109')) {
-                    log.debug(`Wait for extruder temperature to reach target temperature (${line})`);
-                    this.feeder.hold({ data: 'M109' }); // Hold reason
-                }
-
-                // M190 Set heated bed temperature and wait for the target temperature to be reached
-                if (_.includes(words, 'M190')) {
-                    log.debug(`Wait for heated bed temperature to reach target temperature (${line})`);
-                    this.feeder.hold({ data: 'M190' }); // Hold reason
-                }
-
-                { // Program Mode: M0, M1
-                    const programMode = _.intersection(words, ['M0', 'M1'])[0];
-                    if (programMode === 'M0') {
-                        log.debug('M0 Program Pause');
-                        this.feeder.hold({ data: 'M0' }); // Hold reason
-                    } else if (programMode === 'M1') {
-                        log.debug('M1 Program Pause');
-                        this.feeder.hold({ data: 'M1' }); // Hold reason
-                    }
-                }
-
-                // M6 Tool Change
-                if (_.includes(words, 'M6')) {
-                    log.debug('M6 Tool Change');
-                    this.feeder.hold({ data: 'M6' }); // Hold reason
-                }
 
                 return line;
             }
@@ -423,10 +378,11 @@ class CirqoidController {
                 ...context,
                 source: WRITE_SOURCE_FEEDER
             });
-
             this.connection.write(line + '\n', {
                 source: WRITE_SOURCE_FEEDER
             });
+            //this.feeder.hold();
+            this.runner.state.status.activeState = CIRQOID_ACTIVE_STATE_BUSY;
             log.silly(`> ${line}`);
         });
         this.feeder.on('hold', noop);
@@ -435,8 +391,9 @@ class CirqoidController {
         // Sender
         this.sender = new Sender(SP_TYPE_SEND_RESPONSE, {
             dataFilter: (line, context) => {
-                // Remove comments that start with a semicolon `;`
-                line = line.replace(/\s*;.*/g, '').trim();
+                // Remove comments that start with the characters : ';' '(' '#' '%'
+                // line = line.replace(/\s*;.*/g, '').trim();
+                line = line.replace(/\s*[;(#%].*/g, '').trim();
                 context = this.populateContext(context);
 
                 const { sent, received } = this.sender.state;
@@ -458,42 +415,7 @@ class CirqoidController {
                     return '';
                 }
 
-                // line="G0 X[posx - 8] Y[ymax]"
-                // > "G0 X2 Y50"
                 line = translateExpression(line, context);
-                const data = parser.parseLine(line, { flatten: true });
-                const words = ensureArray(data.words);
-
-                // M109 Set extruder temperature and wait for the target temperature to be reached
-                if (_.includes(words, 'M109')) {
-                    log.debug(`Wait for extruder temperature to reach target temperature (${line}): line=${sent + 1}, sent=${sent}, received=${received}`);
-                    const reason = { data: 'M109' };
-                    this.sender.hold(reason); // Hold reason
-                }
-
-                // M190 Set heated bed temperature and wait for the target temperature to be reached
-                if (_.includes(words, 'M190')) {
-                    log.debug(`Wait for heated bed temperature to reach target temperature (${line}): line=${sent + 1}, sent=${sent}, received=${received}`);
-                    const reason = { data: 'M190' };
-                    this.sender.hold(reason); // Hold reason
-                }
-
-                { // Program Mode: M0, M1
-                    const programMode = _.intersection(words, ['M0', 'M1'])[0];
-                    if (programMode === 'M0') {
-                        log.debug(`M0 Program Pause: line=${sent + 1}, sent=${sent}, received=${received}`);
-                        this.workflow.pause({ data: 'M0' });
-                    } else if (programMode === 'M1') {
-                        log.debug(`M1 Program Pause: line=${sent + 1}, sent=${sent}, received=${received}`);
-                        this.workflow.pause({ data: 'M1' });
-                    }
-                }
-
-                // M6 Tool Change
-                if (_.includes(words, 'M6')) {
-                    log.debug(`M6 Tool Change: line=${sent + 1}, sent=${sent}, received=${received}`);
-                    this.workflow.pause({ data: 'M6' });
-                }
 
                 return line;
             }
@@ -565,26 +487,6 @@ class CirqoidController {
 
         this.runner.on('raw', noop);
 
-        this.runner.on('start', (res) => {
-            this.emit('serialport:read', res.raw);
-            // Cirqoid sends 'start' as the first message after
-            // power-on, but not when the serial port is closed and
-            // then re-opened.  Cirqoid has no software-initiated
-            // restart, so 'start' is not dependable as a readiness
-            // indicator.  Instead, we send M115 on connection open
-            // to request a firmware report, whose response signals
-            // Cirqoid readiness.  On initial power-up, Cirqoid might
-            // miss that first M115 as it boots, so we send this
-            // possibly-redundant M115 when we see 'start'.
-            this.connection.write('M115\n', {
-                source: WRITE_SOURCE_SERVER
-            });
-        });
-
-        this.runner.on('echo', (res) => {
-            this.emit('serialport:read', res.raw);
-        });
-
         this.runner.on('firmware', (res) => {
             this.emit('serialport:read', res.raw);
             if (!this.ready) {
@@ -594,25 +496,9 @@ class CirqoidController {
             }
         });
 
-        this.runner.on('pos', (res) => {
-            log.silly(`controller.on('pos'): source=${this.history.writeSource}, line=${JSON.stringify(this.history.writeLine)}, res=${JSON.stringify(res)}`);
-
-            if (_.includes([WRITE_SOURCE_CLIENT, WRITE_SOURCE_FEEDER], this.history.writeSource)) {
-                this.emit('serialport:read', res.raw);
-            }
-        });
-
-        this.runner.on('temperature', (res) => {
-            log.silly(`controller.on('temperature'): source=${this.history.writeSource}, line=${JSON.stringify(this.history.writeLine)}, res=${JSON.stringify(res)}`);
-
-            if (_.includes([WRITE_SOURCE_CLIENT, WRITE_SOURCE_FEEDER], this.history.writeSource)) {
-                this.emit('serialport:read', res.raw);
-            }
-        });
-
         this.runner.on('ok', (res) => {
+            this.runner.state.status.activeState = CIRQOID_ACTIVE_STATE_IDLE;
             log.silly(`controller.on('ok'): source=${this.history.writeSource}, line=${JSON.stringify(this.history.writeLine)}, res=${JSON.stringify(res)}`);
-
             if (res) {
                 if (_.includes([WRITE_SOURCE_CLIENT, WRITE_SOURCE_FEEDER], this.history.writeSource)) {
                     this.emit('serialport:read', res.raw);
@@ -658,8 +544,11 @@ class CirqoidController {
             }
 
             // Feeder
-            if (this.feeder.next()) {
-                return;
+            // this.feeder.unhold();
+            if (this.sender.state.sent === this.sender.state.received) {
+                if (this.feeder.next()) {
+                    return;
+                }
             }
 
             this.query.issue();
@@ -713,8 +602,8 @@ class CirqoidController {
             }
 
             const zeroOffset = _.isEqual(
-                this.runner.getPosition(this.state),
-                this.runner.getPosition(this.runner.state)
+                this.runner.getWorkPosition(this.state),
+                this.runner.getWorkPosition(this.runner.state)
             );
 
             // Cirqoid settings
@@ -726,30 +615,17 @@ class CirqoidController {
 
             // Cirqoid state
             if (this.state !== this.runner.state) {
+                log.debug('state changed');
                 this.state = this.runner.state;
                 this.emit('controller:state', CIRQOID, this.state);
                 this.emit('Cirqoid:state', this.state); // Backward compatibility
             }
+            this.state = this.runner.state;
+            this.emit('controller:state', CIRQOID, this.state);
 
             // Check the ready flag
             if (!(this.ready)) {
                 return;
-            }
-
-            // M114: Get Current Position
-            this.queryPosition();
-
-            // M105: Report Temperatures
-            this.queryTemperature();
-
-            { // The following criteria must be met to issue a query
-                const notBusy = !(this.history.writeSource);
-                const senderIdle = (this.sender.state.sent === this.sender.state.received);
-                const feederEmpty = (this.feeder.size() === 0);
-
-                if (notBusy && senderIdle && feederEmpty) {
-                    this.query.issue();
-                }
             }
 
             // Check if the machine has stopped movement after completion
@@ -775,13 +651,19 @@ class CirqoidController {
     }
 
     populateContext(context) {
+        // MAchine position
+        const {
+            x: mposx,
+            y: mposy,
+            z: mposz
+        } = this.runner.getMachinePosition();
+
         // Work position
         const {
             x: posx,
             y: posy,
-            z: posz,
-            e: pose
-        } = this.runner.getPosition();
+            z: posz
+        } = this.runner.getWorkPosition();
 
         // Modal group
         const modal = this.runner.getModalGroup();
@@ -801,11 +683,16 @@ class CirqoidController {
             zmin: Number(context.zmin) || 0,
             zmax: Number(context.zmax) || 0,
 
+            // Machine position
+            mposx: Number(mposx) || 0,
+            mposy: Number(mposy) || 0,
+            mposz: Number(mposz) || 0,
+            // pose: Number(mpose) || 0,
+
             // Work position
             posx: Number(posx) || 0,
             posy: Number(posy) || 0,
             posz: Number(posz) || 0,
-            pose: Number(pose) || 0,
 
             // Modal group
             modal: {
@@ -818,7 +705,7 @@ class CirqoidController {
                 program: modal.program,
                 spindle: modal.spindle,
                 // M7 and M8 may be active at the same time, but a modal group violation might occur when issuing M7 and M8 together on the same line. Using the new line character (\n) to separate lines can avoid this issue.
-                coolant: ensureArray(modal.coolant).join('\n'),
+                vacuum: ensureArray(modal.vacuum).join('\n'),
             },
 
             // Tool
@@ -923,11 +810,11 @@ class CirqoidController {
 
             log.debug(`Connected to serial port "${port}"`);
 
-            // M115: Get firmware version and capabilities
-            // The response to this will take us to the ready state
-            this.connection.write('M115\n', {
-                source: WRITE_SOURCE_SERVER
-            });
+            this.command('gcode', '$$$info');
+
+            this.command('gcode', 'G92 X0 Y0 Z0');
+
+            this.command('gcode', 'G54');
 
             this.workflow.stop();
 
@@ -1152,8 +1039,7 @@ class CirqoidController {
             },
             'homing': () => {
                 this.event.trigger('homing');
-
-                this.writeln('G28 Y=0.055');
+                this.writeln('G28 Y0.055');
             },
             'sleep': () => {
                 this.event.trigger('sleep');
@@ -1169,113 +1055,56 @@ class CirqoidController {
                 this.feeder.reset();
 
                 // M112: Emergency Stop
-                this.writeln('M112');
+                // this.writeln('M112');
             },
             // Feed Overrides
             // @param {number} value A percentage value between 10 and 500. A value of zero will reset to 100%.
             'feedOverride': () => {
-                const [value] = args;
-                let feedOverride = this.runner.state.ovF;
-
-                if (value === 0) {
-                    feedOverride = 100;
-                } else if ((feedOverride + value) > 500) {
-                    feedOverride = 500;
-                } else if ((feedOverride + value) < 10) {
-                    feedOverride = 10;
-                } else {
-                    feedOverride += value;
-                }
-                // M220: Set speed factor override percentage
-                this.command('gcode', 'M220S' + feedOverride);
-
-                // enforce state change
-                this.runner.state = {
-                    ...this.runner.state,
-                    ovF: feedOverride
-                };
+                // Unsupported
             },
             // Spindle Speed Overrides
             // @param {number} value A percentage value between 10 and 500. A value of zero will reset to 100%.
             'spindleOverride': () => {
-                const [value] = args;
-                let spindleOverride = this.runner.state.ovS;
-
-                if (value === 0) {
-                    spindleOverride = 100;
-                } else if ((spindleOverride + value) > 500) {
-                    spindleOverride = 500;
-                } else if ((spindleOverride + value) < 10) {
-                    spindleOverride = 10;
-                } else {
-                    spindleOverride += value;
-                }
-                // M221: Set extruder factor override percentage
-                this.command('gcode', 'M221S' + spindleOverride);
-
-                // enforce state change
-                this.runner.state = {
-                    ...this.runner.state,
-                    ovS: spindleOverride
-                };
+                // Unsupported
             },
             'rapidOverride': () => {
                 // Unsupported
             },
             'motor:enable': () => {
-                // M17 Enable all stepper motors
-                this.command('gcode', 'M17');
+                // Unsupported
             },
             'motor:disable': () => {
-                // M18/M84 Disable steppers immediately (until the next move)
-                this.command('gcode', 'M18');
-            },
-            'laser:on': () => {
-                const [power = 0, maxS = 255] = args;
-                const commands = [
-                    'M3S' + ensurePositiveNumber(maxS * (power / 100))
-                ];
-
-                this.command('gcode', commands);
-            },
-            'lasertest:on': () => {
-                const [power = 0, duration = 0, maxS = 255] = args;
-                const commands = [
-                    'M3S' + ensurePositiveNumber(maxS * (power / 100))
-                ];
-                if (duration > 0) {
-                    // G4 [P<time in ms>] [S<time in sec>]
-                    // If both S and P are included, S takes precedence.
-                    commands.push('G4 P' + ensurePositiveNumber(duration));
-                    commands.push('M5');
-                }
-                this.command('gcode', commands);
-            },
-            'lasertest:off': () => {
-                this.writeln('M5');
+                // Unsupported
             },
             'gcode': () => {
                 const [commands, context] = args;
-                const data = ensureArray(commands)
-                    .join('\n')
-                    .split(/\r?\n/)
-                    .filter(line => {
-                        if (typeof line !== 'string') {
-                            return false;
+                if (commands.split('G').length - 1 > 1) {
+                    const cmds = commands.split('G');
+                    for (let i = 1; i < cmds.length; i++) {
+                        const line2 = 'G' + cmds[i];
+                        this.command('gcode', line2);
+                    }
+                } else {
+                    const data = ensureArray(commands)
+                        .join('\n')
+                        .split(/\r?\n/)
+                        .filter(line => {
+                            if (typeof line !== 'string') {
+                                return false;
+                            }
+                            return line.trim().length > 0;
+                        });
+
+                    this.feeder.feed(data, context);
+
+                    { // The following criteria must be met to trigger the feeder
+                        const notBusy = !(this.history.writeSource);
+                        const senderIdle = (this.sender.state.sent === this.sender.state.received);
+                        const feederIdle = !(this.feeder.isPending());
+                        //log.debug('notBusy: ' + notBusy + 'senderIdle: ' + senderIdle + 'feederIdle: ' + feederIdle);
+                        if (notBusy && senderIdle && feederIdle) {
+                            this.feeder.next();
                         }
-
-                        return line.trim().length > 0;
-                    });
-
-                this.feeder.feed(data, context);
-
-                { // The following criteria must be met to trigger the feeder
-                    const notBusy = !(this.history.writeSource);
-                    const senderIdle = (this.sender.state.sent === this.sender.state.received);
-                    const feederIdle = !(this.feeder.isPending());
-
-                    if (notBusy && senderIdle && feederIdle) {
-                        this.feeder.next();
                     }
                 }
             },

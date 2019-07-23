@@ -5,7 +5,7 @@ import union from 'lodash/union';
 import PropTypes from 'prop-types';
 import React, { PureComponent } from 'react';
 import Modal from 'app/components/Modal';
-import { GRBL, MARLIN, SMOOTHIE, TINYG } from 'app/constants';
+import { GRBL, MARLIN, SMOOTHIE, TINYG, CIRQOID } from 'app/constants';
 import controller from 'app/lib/controller';
 import i18n from 'app/lib/i18n';
 import store from 'app/store';
@@ -68,6 +68,13 @@ class WidgetManager extends PureComponent {
             id: 'tinyg',
             caption: i18n._('TinyG Widget'),
             details: i18n._('This widget shows the TinyG state and provides TinyG specific features.'),
+            visible: true,
+            disabled: false
+        },
+        {
+            id: 'cirqoid',
+            caption: i18n._('Cirqoid Widget'),
+            details: i18n._('This widget shows the Cirqoid state and provides Cirqoid specific features.'),
             visible: true,
             disabled: false
         },
@@ -159,6 +166,9 @@ class WidgetManager extends PureComponent {
                 return false;
             }
             if (widgetItem.id === 'tinyg' && !includes(controller.loadedControllers, TINYG)) {
+                return false;
+            }
+            if (widgetItem.id === 'cirqoid' && !includes(controller.loadedControllers, CIRQOID)) {
                 return false;
             }
             return true;

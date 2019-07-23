@@ -26,6 +26,10 @@ import {
     TINYG_MACHINE_STATE_STOP,
     TINYG_MACHINE_STATE_END,
     TINYG_MACHINE_STATE_HOLD,
+    // Cirqoid
+    CIRQOID,
+    CIRQOID_ACTIVE_STATE_IDLE,
+    CIRQOID_ACTIVE_STATE_HOLD,
     // Workflow
     WORKFLOW_STATE_RUN
 } from '../../constants';
@@ -107,6 +111,23 @@ class SpindleWidget extends PureComponent {
             // Marlin
             if (type === MARLIN) {
                 const { modal = {} } = { ...state };
+
+                this.setState({
+                    controller: {
+                        type: type,
+                        state: state,
+                        modal: {
+                            spindle: modal.spindle || '',
+                            coolant: modal.coolant || ''
+                        }
+                    }
+                });
+            }
+
+            // Cirqoid
+            if (type === CIRQOID) {
+                const { parserstate } = { ...state };
+                const { modal = {} } = { ...parserstate };
 
                 this.setState({
                     controller: {
@@ -220,7 +241,7 @@ class SpindleWidget extends PureComponent {
         if (workflow.state === WORKFLOW_STATE_RUN) {
             return false;
         }
-        if (!includes([GRBL, MARLIN, SMOOTHIE, TINYG], controllerType)) {
+        if (!includes([GRBL, MARLIN, SMOOTHIE, TINYG, CIRQOID], controllerType)) {
             return false;
         }
         if (controllerType === GRBL) {
@@ -256,6 +277,16 @@ class SpindleWidget extends PureComponent {
             ];
             if (!includes(states, machineState)) {
                 return false;
+            }
+        }
+        if (controllerType === CIRQOID) {
+            const activeState = get(controllerState, 'status.activeState');
+            const states = [
+                CIRQOID_ACTIVE_STATE_IDLE,
+                CIRQOID_ACTIVE_STATE_HOLD
+            ];
+            if (!includes(states, activeState)) {
+                // return false;
             }
         }
 
