@@ -260,12 +260,15 @@ class CirqoidController {
                     if (_.includes(['G92'], cmd)) {
                         if (params.X !== undefined) {
                             nextState.status.wco.x = params.X;
+                            nextState.status.wpos.x = '' + (Number(nextState.status.mpos.x) - Number(nextState.status.wco.x));
                         }
                         if (params.Y !== undefined) {
                             nextState.status.wco.y = params.Y;
+                            nextState.status.wpos.y = '' + (Number(nextState.status.mpos.y) - Number(nextState.status.wco.y));
                         }
                         if (params.Z !== undefined) {
                             nextState.status.wco.z = params.Z;
+                            nextState.status.wpos.z = '' + (Number(nextState.status.mpos.z) - Number(nextState.status.wco.z));
                         }
                     }
 
