@@ -383,8 +383,9 @@ class CirqoidController {
         // Sender
         this.sender = new Sender(SP_TYPE_SEND_RESPONSE, {
             dataFilter: (line, context) => {
-                // Remove comments that start with a semicolon `;`
-                line = line.replace(/\s*;.*/g, '').trim();
+                // Remove comments that start with the characters : ';' '(' '#' '%'
+                // line = line.replace(/\s*;.*/g, '').trim();
+                line = line.replace(/\s*[;(#%].*/g, '').trim();
                 context = this.populateContext(context);
 
                 const { sent, received } = this.sender.state;
@@ -1092,7 +1093,7 @@ class CirqoidController {
                         const notBusy = !(this.history.writeSource);
                         const senderIdle = (this.sender.state.sent === this.sender.state.received);
                         const feederIdle = !(this.feeder.isPending());
-                        log.debug('notBusy: ' + notBusy + 'senderIdle: ' + senderIdle + 'feederIdle: ' + feederIdle);
+                        //log.debug('notBusy: ' + notBusy + 'senderIdle: ' + senderIdle + 'feederIdle: ' + feederIdle);
                         if (notBusy && senderIdle && feederIdle) {
                             this.feeder.next();
                         }
