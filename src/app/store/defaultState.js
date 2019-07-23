@@ -180,6 +180,20 @@ const defaultState = {
                 }
             }
         },
+        cirqoid: {
+            minimized: false,
+            panel: {
+                queueReports: {
+                    expanded: true
+                },
+                statusReports: {
+                    expanded: true
+                },
+                modalGroups: {
+                    expanded: true
+                }
+            }
+        },
         visualizer: {
             minimized: false,
 

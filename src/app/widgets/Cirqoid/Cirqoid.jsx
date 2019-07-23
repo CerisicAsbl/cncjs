@@ -1,22 +1,14 @@
 import ensureArray from 'ensure-array';
-import get from 'lodash/get';
-import isNumber from 'lodash/isNumber';
-import mapValues from 'lodash/mapValues';
+import _ from 'lodash';
 import PropTypes from 'prop-types';
 import React, { PureComponent } from 'react';
 import { ProgressBar } from 'react-bootstrap';
-//import controller from 'app/lib/controller';
 import mapGCodeToText from 'app/lib/gcode-text';
 import i18n from 'app/lib/i18n';
-import { Button } from 'app/components/Buttons';
 import Panel from 'app/components/Panel';
-import Space from 'app/components/Space';
 import Toggler from 'app/components/Toggler';
-import FadeInOut from './FadeInOut';
 import Overrides from './Overrides';
 import styles from './index.styl';
-import IconExtruder from './icons/extruder';
-import IconHeatedBed from './icons/heated-bed';
 
 class Cirqoid extends PureComponent {
     static propTypes = {
@@ -24,279 +16,116 @@ class Cirqoid extends PureComponent {
         actions: PropTypes.object
     };
 
-    extruderPowerMax = 127;
+    // https://github.com/grbl/grbl/wiki/Interfacing-with-Grbl
+    // Grbl v0.9: BLOCK_BUFFER_SIZE (18), RX_BUFFER_SIZE (128)
+    // Grbl v1.1: BLOCK_BUFFER_SIZE (16), RX_BUFFER_SIZE (128)
+    plannerBufferMax = 0;
 
-    heatedBedPowerMax = 127;
+    plannerBufferMin = 0;
 
-    // M104 Set the target temperature for a hotend.
-    /*setExtruderTemperature = (deg) => () => {
-        controller.command('gcode', `M104 S${deg}`);
-        controller.command('gcode', 'M105');
-    };*/
+    receiveBufferMax = 128;
 
-    // M140 Set the target temperature for the heated bed.
-    /*setHeatedBedTemperature = (deg) => () => {
-        controller.command('gcode', `M140 S${deg}`);
-        controller.command('gcode', 'M105');
-    };*/
+    receiveBufferMin = 0;
 
     render() {
         const { state, actions } = this.props;
         const none = '–';
         const panel = state.panel;
         const controllerState = state.controller.state || {};
-        const ovF = get(controllerState, 'ovF', 0);
-        const ovS = get(controllerState, 'ovS', 0);
-        const feedrate = get(controllerState, 'feedrate') || none;
-        const spindle = get(controllerState, 'spindle') || none;
-        const extruder = get(controllerState, 'extruder') || {};
-        const heatedBed = get(controllerState, 'heatedBed') || {};
-        const showExtruderTemperature = (extruder.deg !== undefined && extruder.degTarget !== undefined);
-        const showExtruderPower = (extruder.power !== undefined);
-        const showHeatedBedTemperature = (heatedBed.deg !== undefined && heatedBed.degTarget !== undefined);
-        const showHeatedBedPower = (heatedBed.power !== undefined);
-        const showHeaterStatus = [
-            showExtruderTemperature,
-            showExtruderPower,
-            showHeatedBedTemperature,
-            showHeatedBedPower
-        ].some(x => !!x);
-        const canSetExtruderTemperature = isNumber(state.heater.extruder);
-        const canSetHeatedBedTemperature = isNumber(state.heater.heatedBed);
-        const modal = mapValues(controllerState.modal || {}, mapGCodeToText);
-        const extruderIsHeating = (Number(extruder.degTarget) > Number(extruder.deg));
-        const heatedBedIsHeating = (Number(heatedBed.degTarget) > Number(heatedBed.deg));
-        const extruderPower = Number(extruder.power) || 0;
-        const heatedBedPower = Number(heatedBed.power) || 0;
+        const parserState = _.get(controllerState, 'parserstate', {});
+        const activeState = _.get(controllerState, 'status.activeState') || none;
+        const feedrate = _.get(controllerState, 'status.feedrate', _.get(parserState, 'feedrate', none));
+        const spindle = _.get(controllerState, 'status.spindle', _.get(parserState, 'spindle', none));
+        const tool = _.get(parserState, 'tool', none);
+        const ov = _.get(controllerState, 'status.ov', []);
+        const [ovF = 0, ovR = 0, ovS = 0] = ov;
+        const buf = _.get(controllerState, 'status.buf', {});
+        const modal = _.mapValues(parserState.modal || {}, mapGCodeToText);
+        const receiveBufferStyle = ((rx) => {
+            // danger: 0-7
+            // warning: 8-15
+            // info: >=16
+            rx = Number(rx) || 0;
+            if (rx >= 16) {
+                return 'info';
+            }
+            if (rx >= 8) {
+                return 'warning';
+            }
+            return 'danger';
+        })(buf.rx);
 
-        this.extruderPowerMax = Math.max(this.extruderPowerMax, extruderPower);
-        this.heatedBedPowerMax = Math.max(this.heatedBedPowerMax, heatedBedPower);
+        this.plannerBufferMax = Math.max(this.plannerBufferMax, buf.planner) || this.plannerBufferMax;
+        this.receiveBufferMax = Math.max(this.receiveBufferMax, buf.rx) || this.receiveBufferMax;
 
         return (
             <div>
-                <Overrides ovF={ovF} ovS={ovS} />
-                <Panel className={styles.panel}>
-                    <Panel.Heading className={styles.panelHeading}>
-                        <Toggler
-                            className="clearfix"
-                            onToggle={actions.toggleHeaterControl}
-                            title={panel.heaterControl.expanded ? i18n._('Hide') : i18n._('Show')}
-                        >
-                            <div className="pull-left">{i18n._('Heater Control')}</div>
-                            <Toggler.Icon
-                                className="pull-right"
-                                expanded={panel.heaterControl.expanded}
-                            />
-                        </Toggler>
-                    </Panel.Heading>
-                    {panel.heaterControl.expanded && (
-                        <Panel.Body>
-                            <div
-                                className="table-form"
-                                style={{
-                                    marginBottom: showHeaterStatus ? 15 : 0
-                                }}
+                <Overrides ovF={ovF} ovS={ovS} ovR={ovR} />
+                {!_.isEmpty(buf) && (
+                    <Panel className={styles.panel}>
+                        <Panel.Heading className={styles['panel-heading']}>
+                            <Toggler
+                                className="clearfix"
+                                onToggle={actions.toggleQueueReports}
+                                title={panel.queueReports.expanded ? i18n._('Hide') : i18n._('Show')}
                             >
-                                <div className="table-form-row">
-                                    <div className="table-form-col table-form-col-label">
-                                        <FadeInOut disabled={!extruderIsHeating} from={0.3} to={1}>
-                                            <IconExtruder
-                                                color={extruderIsHeating ? '#000' : '#666'}
-                                                size={24}
-                                            />
-                                        </FadeInOut>
-                                        <Space width="4" />
-                                        {i18n._('Extruder')}
-                                    </div>
-                                    <div className="table-form-col">
-                                        <div className="input-group input-group-sm">
-                                            <input
-                                                type="number"
-                                                value={state.heater.extruder}
-                                                step="1"
-                                                min="0"
-                                                className="form-control"
-                                                onChange={actions.changeExtruderTemperature}
-                                            />
-                                            <span className="input-group-addon">{i18n._('°C')}</span>
-                                        </div>
-                                    </div>
-                                    <div className="table-form-col">
-                                        <Space width="8" />
-                                    </div>
-                                    <div className="table-form-col">
-                                        <Button
-                                            compact
-                                            btnSize="xs"
-                                            btnStyle="danger"
-                                            disabled={!canSetExtruderTemperature}
-                                            onClick={this.setExtruderTemperature(state.heater.extruder)}
-                                            title={i18n._('Set the target temperature for the extruder')}
-                                        >
-                                            <i
-                                                className="fa fa-fw fa-check"
-                                                style={{ fontSize: 16 }}
-                                            />
-                                        </Button>
-                                    </div>
-                                    <div className="table-form-col">
-                                        <Space width="8" />
-                                    </div>
-                                    <div className="table-form-col">
-                                        <Button
-                                            compact
-                                            btnSize="xs"
-                                            btnStyle="flat"
-                                            title={i18n._('Cancel')}
-                                            onClick={this.setExtruderTemperature(0)}
-                                        >
-                                            <i
-                                                className="fa fa-fw fa-close"
-                                                style={{ fontSize: 16 }}
-                                            />
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="table-form-row">
-                                    <div className="table-form-col table-form-col-label">
-                                        <FadeInOut disabled={!heatedBedIsHeating} from={0.3} to={1}>
-                                            <IconHeatedBed
-                                                color={heatedBedIsHeating ? '#000' : '#666'}
-                                                size={24}
-                                            />
-                                        </FadeInOut>
-                                        <Space width="4" />
-                                        {i18n._('Heated Bed')}
-                                    </div>
-                                    <div className="table-form-col">
-                                        <div className="input-group input-group-sm">
-                                            <input
-                                                type="number"
-                                                value={state.heater.heatedBed}
-                                                step="1"
-                                                min="0"
-                                                className="form-control"
-                                                onChange={actions.changeHeatedBedTemperature}
-                                            />
-                                            <span className="input-group-addon">{i18n._('°C')}</span>
-                                        </div>
-                                    </div>
-                                    <div className="table-form-col">
-                                        <Space width="8" />
-                                    </div>
-                                    <div className="table-form-col">
-                                        <Button
-                                            compact
-                                            btnSize="xs"
-                                            btnStyle="danger"
-                                            disabled={!canSetHeatedBedTemperature}
-                                            onClick={this.setHeatedBedTemperature(state.heater.heatedBed)}
-                                            title={i18n._('Set the target temperature for the heated bed')}
-                                        >
-                                            <i
-                                                className="fa fa-fw fa-check"
-                                                style={{ fontSize: 16 }}
-                                            />
-                                        </Button>
-                                    </div>
-                                    <div className="table-form-col">
-                                        <Space width="8" />
-                                    </div>
-                                    <div className="table-form-col">
-                                        <Button
-                                            compact
-                                            btnSize="xs"
-                                            btnStyle="flat"
-                                            onClick={this.setHeatedBedTemperature(0)}
-                                            title={i18n._('Cancel')}
-                                        >
-                                            <i
-                                                className="fa fa-fw fa-close"
-                                                style={{ fontSize: 16 }}
-                                            />
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                            {showExtruderTemperature && (
+                                <div className="pull-left">{i18n._('Queue Reports')}</div>
+                                <Toggler.Icon
+                                    className="pull-right"
+                                    expanded={panel.queueReports.expanded}
+                                />
+                            </Toggler>
+                        </Panel.Heading>
+                        {panel.queueReports.expanded && (
+                            <Panel.Body>
                                 <div className="row no-gutters">
-                                    <div className="col col-xs-7">
-                                        <div className={styles.textEllipsis} title={i18n._('Extruder Temperature')}>
-                                            {i18n._('Extruder Temperature')}
+                                    <div className="col col-xs-4">
+                                        <div className={styles.textEllipsis} title={i18n._('Planner Buffer')}>
+                                            {i18n._('Planner Buffer')}
                                         </div>
                                     </div>
-                                    <div className="col col-xs-5">
-                                        <div className={styles.well}>
-                                            {`${extruder.deg}°C / ${extruder.degTarget}°C`}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            {showHeatedBedTemperature && (
-                                <div className="row no-gutters">
-                                    <div className="col col-xs-7">
-                                        <div className={styles.textEllipsis} title={i18n._('Heated Bed Temperature')}>
-                                            {i18n._('Heated Bed Temperature')}
-                                        </div>
-                                    </div>
-                                    <div className="col col-xs-5">
-                                        <div className={styles.well}>
-                                            {`${heatedBed.deg}°C / ${heatedBed.degTarget}°C`}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            {showExtruderPower && (
-                                <div className="row no-gutters">
-                                    <div className="col col-xs-7">
-                                        <div className={styles.textEllipsis} title={i18n._('Extruder Power')}>
-                                            {i18n._('Extruder Power')}
-                                        </div>
-                                    </div>
-                                    <div className="col col-xs-5">
+                                    <div className="col col-xs-8">
                                         <ProgressBar
                                             style={{ marginBottom: 0 }}
                                             bsStyle="info"
-                                            min={0}
-                                            max={this.extruderPowerMax}
-                                            now={extruderPower}
+                                            min={this.plannerBufferMin}
+                                            max={this.plannerBufferMax}
+                                            now={buf.planner}
                                             label={(
                                                 <span className={styles.progressbarLabel}>
-                                                    {extruderPower}
+                                                    {buf.planner}
                                                 </span>
                                             )}
                                         />
                                     </div>
                                 </div>
-                            )}
-                            {showHeatedBedPower && (
                                 <div className="row no-gutters">
-                                    <div className="col col-xs-7">
-                                        <div className={styles.textEllipsis} title={i18n._('Heated Bed Power')}>
-                                            {i18n._('Heated Bed Power')}
+                                    <div className="col col-xs-4">
+                                        <div className={styles.textEllipsis} title={i18n._('Receive Buffer')}>
+                                            {i18n._('Receive Buffer')}
                                         </div>
                                     </div>
-                                    <div className="col col-xs-5">
+                                    <div className="col col-xs-8">
                                         <ProgressBar
                                             style={{ marginBottom: 0 }}
-                                            bsStyle="info"
-                                            min={0}
-                                            max={this.heatedBedPowerMax}
-                                            now={heatedBedPower}
+                                            bsStyle={receiveBufferStyle}
+                                            min={this.receiveBufferMin}
+                                            max={this.receiveBufferMax}
+                                            now={buf.rx}
                                             label={(
                                                 <span className={styles.progressbarLabel}>
-                                                    {heatedBedPower}
+                                                    {buf.rx}
                                                 </span>
                                             )}
                                         />
                                     </div>
                                 </div>
-                            )}
-                        </Panel.Body>
-                    )}
-                </Panel>
+                            </Panel.Body>
+                        )}
+                    </Panel>
+                )}
                 <Panel className={styles.panel}>
-                    <Panel.Heading className={styles.panelHeading}>
+                    <Panel.Heading className={styles['panel-heading']}>
                         <Toggler
                             className="clearfix"
                             onToggle={() => {
@@ -313,6 +142,18 @@ class Cirqoid extends PureComponent {
                     </Panel.Heading>
                     {panel.statusReports.expanded && (
                         <Panel.Body>
+                            <div className="row no-gutters">
+                                <div className="col col-xs-4">
+                                    <div className={styles.textEllipsis} title={i18n._('State')}>
+                                        {i18n._('State')}
+                                    </div>
+                                </div>
+                                <div className="col col-xs-8">
+                                    <div className={styles.well}>
+                                        {activeState}
+                                    </div>
+                                </div>
+                            </div>
                             <div className="row no-gutters">
                                 <div className="col col-xs-4">
                                     <div className={styles.textEllipsis} title={i18n._('Feed Rate')}>
@@ -337,11 +178,23 @@ class Cirqoid extends PureComponent {
                                     </div>
                                 </div>
                             </div>
+                            <div className="row no-gutters">
+                                <div className="col col-xs-4">
+                                    <div className={styles.textEllipsis} title={i18n._('Tool Number')}>
+                                        {i18n._('Tool Number')}
+                                    </div>
+                                </div>
+                                <div className="col col-xs-8">
+                                    <div className={styles.well}>
+                                        {tool}
+                                    </div>
+                                </div>
+                            </div>
                         </Panel.Body>
                     )}
                 </Panel>
                 <Panel className={styles.panel}>
-                    <Panel.Heading className={styles.panelHeading}>
+                    <Panel.Heading className={styles['panel-heading']}>
                         <Toggler
                             className="clearfix"
                             onToggle={() => {
