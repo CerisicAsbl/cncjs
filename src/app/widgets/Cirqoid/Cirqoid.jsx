@@ -35,8 +35,9 @@ class Cirqoid extends PureComponent {
         const parserState = _.get(controllerState, 'parserstate', {});
         const activeState = _.get(controllerState, 'status.activeState') || none;
         const feedrate = _.get(controllerState, 'status.feedrate', _.get(parserState, 'feedrate', none));
+        const rapidFeedrate = _.get(controllerState, 'status.rapidFeedrate', _.get(parserState, 'rapidFeedrate', none));
         const spindle = _.get(controllerState, 'status.spindle', _.get(parserState, 'spindle', none));
-        const tool = _.get(parserState, 'tool', none);
+        //const tool = _.get(parserState, 'tool', none);
         const ov = _.get(controllerState, 'status.ov', []);
         const [ovF = 0, ovR = 0, ovS = 0] = ov;
         const buf = _.get(controllerState, 'status.buf', {});
@@ -168,6 +169,18 @@ class Cirqoid extends PureComponent {
                             </div>
                             <div className="row no-gutters">
                                 <div className="col col-xs-4">
+                                    <div className={styles.textEllipsis} title={i18n._('Rapid Feed Rate')}>
+                                        {i18n._('Rapid Feed Rate')}
+                                    </div>
+                                </div>
+                                <div className="col col-xs-8">
+                                    <div className={styles.well}>
+                                        {rapidFeedrate}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="row no-gutters">
+                                <div className="col col-xs-4">
                                     <div className={styles.textEllipsis} title={i18n._('Spindle')}>
                                         {i18n._('Spindle')}
                                     </div>
@@ -175,18 +188,6 @@ class Cirqoid extends PureComponent {
                                 <div className="col col-xs-8">
                                     <div className={styles.well}>
                                         {spindle}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="row no-gutters">
-                                <div className="col col-xs-4">
-                                    <div className={styles.textEllipsis} title={i18n._('Tool Number')}>
-                                        {i18n._('Tool Number')}
-                                    </div>
-                                </div>
-                                <div className="col col-xs-8">
-                                    <div className={styles.well}>
-                                        {tool}
                                     </div>
                                 </div>
                             </div>
@@ -271,7 +272,7 @@ class Cirqoid extends PureComponent {
                                     </div>
                                 </div>
                             </div>
-                            <div className="row no-gutters">
+                            {/* <div className="row no-gutters">
                                 <div className="col col-xs-4">
                                     <div className={styles.textEllipsis} title={i18n._('Units')}>
                                         {i18n._('Units')}
@@ -282,8 +283,8 @@ class Cirqoid extends PureComponent {
                                         {modal.units || none}
                                     </div>
                                 </div>
-                            </div>
-                            <div className="row no-gutters">
+                            </div> */}
+                            {/* <div className="row no-gutters">
                                 <div className="col col-xs-4">
                                     <div className={styles.textEllipsis} title={i18n._('Program')}>
                                         {i18n._('Program')}
@@ -294,7 +295,7 @@ class Cirqoid extends PureComponent {
                                         {modal.program || none}
                                     </div>
                                 </div>
-                            </div>
+                            </div> */}
                             <div className="row no-gutters">
                                 <div className="col col-xs-4">
                                     <div className={styles.textEllipsis} title={i18n._('Spindle')}>
@@ -309,14 +310,14 @@ class Cirqoid extends PureComponent {
                             </div>
                             <div className="row no-gutters">
                                 <div className="col col-xs-4">
-                                    <div className={styles.textEllipsis} title={i18n._('Coolant')}>
-                                        {i18n._('Coolant')}
+                                    <div className={styles.textEllipsis} title={i18n._('Vacuum')}>
+                                        {i18n._('Vacuum')}
                                     </div>
                                 </div>
                                 <div className="col col-xs-8">
                                     <div className={styles.well}>
-                                        {ensureArray(modal.coolant).map(coolant => (
-                                            <div title={coolant} key={coolant}>{coolant || none}</div>
+                                        {ensureArray(modal.vacuum).map(vacuum => (
+                                            <div title={vacuum} key={vacuum}>{vacuum || none}</div>
                                         ))}
                                     </div>
                                 </div>
