@@ -294,11 +294,16 @@ class CirqoidController {
                             }
                         }
                     }
+                    // spindle or head
+                    if (_.includes(['M7', 'M07', 'M9', 'M09'], cmd)) {
+                        // M7: Vacuum on, M9: Vacuum off
+                        nextState.parserstate.modal.vacuum = cmd;
+                    }
 
                     // All discarded gcodes are handled here:
                     // M02
-                    if (_.includes(['M2', 'M02'], cmd)) {
-                        const filteredGcodes = ['M2', 'M02'];
+                    if (_.includes(['M0', 'M00', 'M1', 'M01', 'M2', 'M02'], cmd)) {
+                        const filteredGcodes = ['M0', 'M00', 'M1', 'M01', 'M2', 'M02'];
                         for (let filteredGcode of filteredGcodes) {
                             data = data.replace(new RegExp('\\s*' + filteredGcode + '.*', 'g'), '');
                         }
@@ -700,7 +705,7 @@ class CirqoidController {
                 program: modal.program,
                 spindle: modal.spindle,
                 // M7 and M8 may be active at the same time, but a modal group violation might occur when issuing M7 and M8 together on the same line. Using the new line character (\n) to separate lines can avoid this issue.
-                coolant: ensureArray(modal.coolant).join('\n'),
+                vacuum: ensureArray(modal.vacuum).join('\n'),
             },
 
             // Tool

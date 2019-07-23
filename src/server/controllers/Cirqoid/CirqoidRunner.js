@@ -45,14 +45,14 @@ class CirqoidRunner extends events.EventEmitter {
                 motion: 'G0', // G0, G1, G2, G3, G38.2, G38.3, G38.4, G38.5, G80
                 wcs: 'G53', // G53, G54, G55, G56, G57, G58, G59
                 plane: 'G17', // G17: xy-plane, G18: xz-plane, G19: yz-plane
-                units: 'G21', // G20: Inches, G21: Millimeters
+                //units: 'G21', // G20: Inches, G21: Millimeters
                 distance: 'G90', // G90: Absolute, G91: Relative
                 feedrate: 'G94', // G93: Inverse time mode, G94: Units per minute
-                program: 'M0', // M0, M1, M2, M30
+                //program: 'M0', // M0, M1, M2, M30
                 spindle: 'M5', // M3: Spindle (cw), M4: Spindle (ccw), M5: Spindle off
-                coolant: 'M9' // M7: Mist coolant, M8: Flood coolant, M9: Coolant off, [M7,M8]: Both on
+                vacuum: 'M9' // M7: Vacuum on, M9: Vacuum off
             },
-            tool: '',
+            //tool: '',
             feedrate: '',
             rapidFeedrate: '',
             spindle: ''
