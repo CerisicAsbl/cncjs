@@ -535,5 +535,7 @@
     "Connect to an IP camera": "Connect to an IP camera",
     "The URL must be for a Motion JPEG (mjpeg) HTTP or RTSP stream.": "The URL must be for a Motion JPEG (mjpeg) HTTP or RTSP stream.",
     "Cirqoid Widget": "Cirqoid Widget",
-    "This widget shows the Cirqoid state and provides Cirqoid specific features.": "This widget shows the Cirqoid state and provides Cirqoid specific features."
+    "This widget shows the Cirqoid state and provides Cirqoid specific features.": "This widget shows the Cirqoid state and provides Cirqoid specific features.",
+    "Rapid Feed Rate": "Rapid Feed Rate",
+    "Vacuum": "Vacuum"
 }
